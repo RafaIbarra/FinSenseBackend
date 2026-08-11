@@ -1,0 +1,51 @@
+# ─── Entornos virtuales ─────────────────────────────────────────────────────
+venv/
+.env/
+env/
+ENV/
+
+# ─── Variables de entorno (NUNCA subir .env con contraseñas) ───────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ─── Caché de Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# ─── Archivos de sistema ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── IDEs y editores ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Testing / Coverage ───────────────────────────────────────────────────────
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ─── Build / Dist ─────────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# ─── Alembic: NO ignorar versions/ ───────────────────────────────────────────
+# Las migraciones DEBEN versionarse en Git.
+# No pongas: alembic/versions/
