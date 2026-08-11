@@ -1,22 +1,26 @@
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import  Depends, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from passlib.context import CryptContext
 
-from Config.Settings import get_db
+
+
+from Common.routers_factory import generar_router
+from Config.settings import get_db
+from Security.password_utils import hash_password
 from Models.Usuarios import Usuarios
-
-router = APIRouter(prefix="/admin", tags=["UsuariosAdmin"])
-
-pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+import re
 
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
 
 
-@router.post("/registro-usuario")
+_PREFIX = '/user'
+router_user_public = generar_router(_PREFIX, ["Registro Usuarios"], protegido=False)
+
+
+
+
+@router_user_public.post("/registro-usuario")
 async def RegistroUsuario(
     nombre: str = Form(...),
     apellido: str = Form(...),
@@ -26,6 +30,7 @@ async def RegistroUsuario(
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        username = re.sub(r'\s+', '', username.lower())
         existing_user = await db.execute(
             select(Usuarios).where(Usuarios.UserName == username)
         )

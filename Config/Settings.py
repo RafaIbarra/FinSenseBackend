@@ -24,12 +24,15 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     SECRET_KEY: str
     DEBUG: bool = False
+    MODO_PRODUCCION: bool
 
     DB_USER: str
     DB_PASS: str
     DB_HOST: str = "localhost"
     DB_PORT: str = "5432"
     DB_NAME: str
+
+    JWT_ALGORITHM:str="HS256"
 
     @property
     def DATABASE_URL(self) -> str:
@@ -53,7 +56,7 @@ settings = get_settings()
 # ─── SQLAlchemy Async ──────────────────────────────────────────────────────────
 async_engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    # echo=settings.DEBUG,
     future=True,
 )
 

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, func
 from sqlalchemy.orm import relationship
 
-from Config.Settings import Base
+from Config.settings import Base
 
 
 class Usuarios(Base):

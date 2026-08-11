@@ -9,10 +9,11 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from fastapi.routing import APIRoute
-from Config.Settings import settings, init_db, get_db
-from Apis.UsuariosAdmin import router as usuarios_admin_router
-from Apis.Sesiones import router as sesiones_router
+
+from Config.settings import settings, get_db
+from Apis.UsersApi import router_user_public
+
+from Apis.SessionsApi import router_sesion_protegida,router_sesion_public
 
 
 # ─── Lifespan: crea tablas al iniciar (solo en DEBUG) ────────────────────────
@@ -32,8 +33,9 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-app.include_router(usuarios_admin_router)
-app.include_router(sesiones_router)
+app.include_router(router_user_public)
+app.include_router(router_sesion_protegida)
+app.include_router(router_sesion_public)
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
