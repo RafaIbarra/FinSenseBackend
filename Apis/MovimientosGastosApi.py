@@ -4,7 +4,7 @@ from fastapi import Depends, Form, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from Common.routers_factory import generar_router
 from Config.settings import get_db,settings
-from Repositories.movimientos_gastos_repo import registrar
+from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
 
 router_movimientos = generar_router('/gastos')
 
@@ -68,3 +68,18 @@ async def registro_manual(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al registrar el movimiento: {e}")
+
+
+@router_movimientos.post("/eliminar")
+async def eliminar(
+    request: Request,
+    id: int = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    usuario_id = int(request.state.id_usuario)
+    resultado = await eliminar_movimiento(db, id, usuario_id)
+
+    if isinstance(resultado, dict) and resultado.get("error"):
+        raise HTTPException(status_code=400, detail=resultado["error"])
+
+    return resultado

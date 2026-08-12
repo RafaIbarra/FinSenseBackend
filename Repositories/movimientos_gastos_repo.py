@@ -6,6 +6,16 @@ from Models.Empresas import Empresas
 from Models.MovimientosGastos import MovimientosGastos
 
 
+async def obtener_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
+    result = await db.execute(
+        select(MovimientosGastos).where(
+            MovimientosGastos.Id == movimiento_id,
+            MovimientosGastos.UsuarioId == usuario_id,
+        )
+    )
+    return result.scalars().first()
+
+
 async def registrar(db: AsyncSession, movimiento: dict):
     """Registra o actualiza un movimiento de gasto.
 
@@ -88,3 +98,16 @@ async def registrar(db: AsyncSession, movimiento: dict):
     except Exception as e:
         await db.rollback()
         return {"error": str(e)}
+
+
+async def eliminar_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
+    if not movimiento_id:
+        return {"error": "El movimiento es obligatorio"}
+
+    movimiento = await obtener_movimiento(db, movimiento_id, usuario_id)
+    if not movimiento:
+        return {"error": f"Movimiento con id {movimiento_id} no encontrado para el usuario"}
+
+    await db.delete(movimiento)
+    await db.commit()
+    return {"status": "success", "id": movimiento_id, "deleted": True}

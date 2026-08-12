@@ -104,6 +104,7 @@ async def login(
     return {
         "status": "success",
         "UserName": user.UserName,
+        "UserId": user.Id,
         "Correo": user.Correo,
         "SesionId": sesion.Id,
     }
