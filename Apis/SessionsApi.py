@@ -91,10 +91,10 @@ async def login(
 
     # 3. Generar tokens
     access_token = create_token(
-        str(user.UserName), "access", timedelta(minutes=_ACCESS_TTL_MINUTES)
+        str(user.UserName),str(user.Id), "access", timedelta(minutes=_ACCESS_TTL_MINUTES)
     )
     refresh_token = create_token(
-        str(user.Id), "refresh", timedelta(minutes=_REFRESH_TTL_MINUTES)
+        str(user.Id),str(user.Id), "refresh", timedelta(minutes=_REFRESH_TTL_MINUTES)
     )
 
     # 4. Setear cookies
@@ -111,4 +111,9 @@ async def login(
 
 @router_sesion_protegida.get("/control-sesion")
 async def control_sesion(request: Request):
-    return {"Result": request.state.usuario}
+    
+    respuesta={
+        'Usuario':request.state.usuario,
+        'IdUsuario':request.state.id_usuario,
+    }
+    return respuesta

@@ -14,7 +14,7 @@ from Config.settings import settings, get_db
 from Apis.UsersApi import router_user_public
 
 from Apis.SessionsApi import router_sesion_protegida,router_sesion_public
-
+from Apis.MovimientosGastosApi import router_movimientos
 
 # ─── Lifespan: crea tablas al iniciar (solo en DEBUG) ────────────────────────
 # @asynccontextmanager
@@ -36,6 +36,7 @@ app = FastAPI(
 app.include_router(router_user_public)
 app.include_router(router_sesion_protegida)
 app.include_router(router_sesion_public)
+app.include_router(router_movimientos)
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(

@@ -19,7 +19,7 @@ sys.path.append(str(BASE_DIR))
 
 # ─── 2. Importar Settings y TUS MODELOS ─────────────────────────────────────
 # Esto es CRÍTICO: sin importar los modelos, Alembic no sabe qué tablas existen
-from Config.Settings import settings, Base
+from Config.settings import settings, Base
 import Models  # Ejecuta Models/__init__.py que registra Usuario y SesionActiva
 
 # ─── 3. Configuración de Alembic ─────────────────────────────────────────────
