@@ -92,6 +92,7 @@ async def registro(
     response: Response,
     imagenes: List[UploadFile] = File(..., description="1 o 2 imágenes de la factura (jpg, png, webp)"),
     id: int = Form(0),
+    modelo: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -109,6 +110,11 @@ async def registro(
       ```
     """
     id_usuario = int(request.state.id_usuario)
+    GEMINI_MODELS=[
+         "gemini-3.5-flash",
+         "gemini-2.5-flash",
+         "gemini-3.1-flash-lite"
+    ]
 
     # ── Validaciones de imágenes ──────────────────────────
     if len(imagenes) == 0:
@@ -137,24 +143,50 @@ async def registro(
     mime_1 = imagenes[0].content_type or "image/jpeg"
     mime_2 = imagenes[1].content_type if len(imagenes) > 1 else "image/jpeg"
 
-    # ── Extraer datos con Gemini (OCR) ────────────────────
-    try:
-        factura: FacturaExtraida = extraer_factura(
-            imagen_1=bytes_1,
-            imagen_2=bytes_2,
-            mime_type_1=mime_1,
-            mime_type_2=mime_2
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"No se pudo interpretar la respuesta del OCR: {str(e)}"
-        )
-    except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Error del servicio OCR: {str(e)}"
-        )
+    # ── Extraer datos con Gemini (OCR) intentando hasta 3 modelos ─
+    # Construir lista de modelos a probar: si el cliente envía `modelo`, probarlo primero
+    if modelo and modelo in GEMINI_MODELS:
+        modelos_a_probar = [modelo] + [m for m in GEMINI_MODELS if m != modelo]
+    else:
+        modelos_a_probar = GEMINI_MODELS.copy()
+
+    factura: Optional[FacturaExtraida] = None
+    ultimo_error: Optional[Exception] = None
+
+    for m in modelos_a_probar[:3]:
+        try:
+            factura = extraer_factura(
+                imagen_1=bytes_1,
+                imagen_2=bytes_2,
+                mime_type_1=mime_1,
+                mime_type_2=mime_2,
+                model=m,
+            )
+            # éxito
+            break
+        except (ValueError, RuntimeError) as e:
+            ultimo_error = e
+            # intentar con el siguiente modelo
+            continue
+        except Exception as e:
+            ultimo_error = e
+            continue
+
+    if factura is None:
+        # Retornar sólo el error del último intento
+        if isinstance(ultimo_error, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"No se pudo interpretar la respuesta del OCR: {str(ultimo_error)}"
+            )
+        elif isinstance(ultimo_error, RuntimeError):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Error del servicio OCR: {str(ultimo_error)}"
+            )
+        else:
+            # error genérico
+            raise HTTPException(status_code=500, detail=str(ultimo_error))
 
     # ── Clasificar gasto con Groq ─────────────────────────
     clasificacion: Optional[ClasificacionGasto] = None

@@ -21,6 +21,7 @@ class FacturaExtraida(BaseModel):
     iva_cinco: Optional[float] = None
     fiabilidad: str = "Malo"  # Excelente, Bueno, Malo
     detalle: List[str] = []   # Conceptos/descripciones de los artículos
+    Model: Optional[str] = None
 
 
 # ── Prompt optimizado ─────────────────────────────────────
@@ -111,12 +112,23 @@ REGLAS GENERALES:
 """
 
 
-def _limpiar_respuesta(raw_text: str) -> dict:
-    """Limpia la respuesta de Gemini removiendo markdown y parseando JSON."""
+def _limpiar_respuesta(raw_text: str, model: Optional[str] = None) -> dict:
+    """Limpia la respuesta de Gemini removiendo markdown y parseando JSON.
+
+    Si se proporciona `model`, lo agrega como la clave `Model` en el dict parseado.
+    """
     raw_text = raw_text.strip()
     raw_text = raw_text.removeprefix("```json").removeprefix("```")
     raw_text = raw_text.removesuffix("```").strip()
-    return json.loads(raw_text)
+    data = json.loads(raw_text)
+    if model is not None:
+        # Añadir la info del modelo utilizado
+        try:
+            # Si ya existe una clave 'Model', sobrescribirla
+            data["Model"] = model
+        except Exception:
+            data.update({"Model": model})
+    return data
 
 
 def _crear_parte_imagen(image_bytes: bytes, mime_type: str = "image/jpeg") -> types.Part:
@@ -133,7 +145,8 @@ def extraer_factura(
     imagen_1: bytes,
     imagen_2: Optional[bytes] = None,
     mime_type_1: str = "image/jpeg",
-    mime_type_2: str = "image/jpeg"
+    mime_type_2: str = "image/jpeg",
+    model: str = MODEL,
 ) -> FacturaExtraida:
     """
     Extrae datos de una factura desde una o dos imágenes usando Gemini.
@@ -161,8 +174,9 @@ def extraer_factura(
         parts.append(_crear_parte_imagen(imagen_2, mime_type_2))
 
     try:
+        # Use the configured model (default is MODEL) if provided by caller
         response = client.models.generate_content(
-            model=MODEL,
+            model=model,
             contents=[
                 types.Content(
                     role="user",
@@ -171,7 +185,7 @@ def extraer_factura(
             ]
         )
 
-        data = _limpiar_respuesta(response.text)
+        data = _limpiar_respuesta(response.text, model=model)
         return FacturaExtraida(**data)
 
     except json.JSONDecodeError as e:
