@@ -1,11 +1,12 @@
 from datetime import date
+from typing import List, Optional
 
-from fastapi import Depends, Form, HTTPException, Request, Response
+from fastapi import Depends, Form, HTTPException, Request, Response,status,File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from Common.routers_factory import generar_router
 from Config.settings import get_db,settings
 from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
-
+from Integrations.google_ocr_client import extraer_factura,FacturaExtraida
 router_movimientos = generar_router('/gastos')
 
 @router_movimientos.post("/registro-manual")
@@ -83,3 +84,98 @@ async def eliminar(
         raise HTTPException(status_code=400, detail=resultado["error"])
 
     return resultado
+
+@router_movimientos.post("/registro")
+async def registro(
+    request: Request,
+    response: Response,
+    imagenes: List[UploadFile] = File(..., description="1 o 2 imágenes de la factura (jpg, png, webp)"),
+    id: int = Form(0),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Registra un movimiento extrayendo datos de factura desde 1 o 2 imágenes.
+
+    - **imagenes**: Lista de archivos de imagen. Mínimo 1, máximo 2.
+      El frontend debe enviar ambos archivos con el mismo field name: `imagenes`.
+      Ejemplo con FormData en JavaScript:
+      ```js
+      const formData = new FormData();
+      formData.append("imagenes", file1);      // página 1
+      formData.append("imagenes", file2);      // página 2 (opcional)
+      formData.append("id", "0");
+      ```
+    """
+    id_usuario = int(request.state.id_usuario)
+
+    # ── Validaciones de imágenes ──────────────────────────
+    if len(imagenes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debes enviar al menos 1 imagen de la factura."
+        )
+
+    if len(imagenes) > 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Máximo 2 imágenes permitidas (factura de 1 o 2 páginas)."
+        )
+
+    for img in imagenes:
+        if not img.content_type or not img.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El archivo '{img.filename}' no es una imagen válida."
+            )
+
+    # ── Leer imágenes en bytes ─────────────────────────────
+    # FastAPI maneja UploadFile como un stream; lo leemos completo en memoria
+    bytes_1 = await imagenes[0].read()
+    bytes_2 = await imagenes[1].read() if len(imagenes) > 1 else None
+
+    mime_1 = imagenes[0].content_type or "image/jpeg"
+    mime_2 = imagenes[1].content_type if len(imagenes) > 1 else "image/jpeg"
+
+    # ── Extraer datos con Gemini ──────────────────────────
+    try:
+        factura: FacturaExtraida = extraer_factura(
+            imagen_1=bytes_1,
+            imagen_2=bytes_2,
+            mime_type_1=mime_1,
+            mime_type_2=mime_2
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"No se pudo interpretar la respuesta del OCR: {str(e)}"
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error del servicio OCR: {str(e)}"
+        )
+
+    # ── Aquí va tu lógica de negocio ──────────────────────
+    # Ejemplo: guardar en base de datos, etc.
+    # movimiento = Movimiento(
+    #     id_usuario=id_usuario,
+    #     empresa=factura.empresa,
+    #     ruc_empresa=factura.ruc_empresa,
+    #     fecha=factura.fecha,
+    #     numero_factura=factura.numero_factura,
+    #     total=factura.total,
+    #     iva_diez=factura.iva_diez,
+    #     iva_cinco=factura.iva_cinco,
+    #     fiabilidad=factura.fiabilidad,
+    #     # ... tus campos
+    # )
+    # db.add(movimiento)
+    # await db.commit()
+
+    return {
+        "success": True,
+        "message": "Factura procesada correctamente",
+        "data": factura.model_dump(),
+        "id_usuario": id_usuario,
+        "id_form": id,
+    }
