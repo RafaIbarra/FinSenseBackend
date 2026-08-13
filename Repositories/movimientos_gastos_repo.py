@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Models.CategoriasGastos import CategoriasGastos
 from Models.Empresas import Empresas
 from Models.MovimientosGastos import MovimientosGastos
-
+from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
+from Integrations.r2_storage import *
 
 async def obtener_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
     result = await db.execute(
@@ -93,6 +94,50 @@ async def registrar(db: AsyncSession, movimiento: dict):
         db.add(nuevo_movimiento)
         await db.commit()
         await db.refresh(nuevo_movimiento)
+        if imagenes:
+            imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
+            for index, img in enumerate(imagenes[:2], start=1):
+                try:
+                    if hasattr(img, "read") and callable(img.read):
+                        try:
+                            await img.seek(0)
+                        except Exception:
+                            pass
+                        file_bytes = await img.read()
+                        file_name = getattr(img, "filename", None) or getattr(img, "name", None) or f"factura_{index}.jpg"
+                    elif isinstance(img, (bytes, bytearray)):
+                        file_bytes = bytes(img)
+                        file_name = f"factura_{index}.jpg"
+                    elif isinstance(img, dict):
+                        file_bytes = img.get("bytes") or img.get("content") or b""
+                        file_name = img.get("filename") or img.get("name") or f"factura_{index}.jpg"
+                    else:
+                        continue
+
+                    if not file_bytes:
+                        continue
+
+                    resultado = r2_storage.upload_gasto_image(
+                        file_bytes=file_bytes,
+                        file_name=file_name,
+                    )
+
+                    if not resultado.get('success'):
+                        print(f'Error al subir imagen {file_name}: {resultado.get("message")}')
+                        continue
+
+                    imagen = MovimientosGastosImagenes(
+                        UrlImagen=resultado['url'],
+                        ReferenciaCola=index,
+                        MovimientoGastoId=nuevo_movimiento.Id,
+                    )
+                    db.add(imagen)
+
+                except Exception as exc:
+                    print(f'Error procesando imagen {index}: {exc}')
+
+            await db.commit()
+
         return nuevo_movimiento
 
     except Exception as e:

@@ -8,8 +8,8 @@ from Config.settings import settings
 GEMINI_API_KEY = settings.GEMINI_API_KEY
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-MODEL = "gemini-3.5-flash"
-
+#MODEL = "gemini-3.5-flash"
+MODEL =""
 # ── Schemas ───────────────────────────────────────────────
 class FacturaExtraida(BaseModel):
     empresa: Optional[str] = None

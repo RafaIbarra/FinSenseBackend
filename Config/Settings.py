@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     GROQ_API_KEY:str
     JWT_ALGORITHM:str="HS256"
 
+    R2_ACCOUNT_ID:str
+    R2_ACCESS_KEY_ID:str
+    R2_SECRET_ACCESS_KEY:str
+    R2_ENDPOINT_URL:str
+    R2_BUCKET_GASTOS:str
+    R2_PUBLIC_URL_GASTOS:str
+
     @property
     def DATABASE_URL(self) -> str:
         return (

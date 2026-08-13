@@ -1,3 +1,7 @@
+from sqlalchemy import select
+from Models.Empresas import Empresas
+from Models.CategoriasGastos import CategoriasGastos
+
 from datetime import date
 from typing import List, Optional
 
@@ -8,6 +12,11 @@ from Config.settings import get_db,settings
 from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
 from Integrations.google_ocr_client import extraer_factura,FacturaExtraida
 from Integrations.groq_clasificador import clasificar_gasto,ClasificacionGasto
+from DataTest.data import OCR_DATA
+
+from Repositories.empresas_repo import registrar as registrar_empresa
+from Repositories.categorias_gastos_repo import registrar as registrar_categoria
+from Integrations.r2_storage import *
 router_movimientos = generar_router('/gastos')
 
 @router_movimientos.post("/registro-manual")
@@ -152,9 +161,13 @@ async def registro(
 
     factura: Optional[FacturaExtraida] = None
     ultimo_error: Optional[Exception] = None
-
+    
+    
+                
+    
     for m in modelos_a_probar[:3]:
         try:
+            
             factura = extraer_factura(
                 imagen_1=bytes_1,
                 imagen_2=bytes_2,
@@ -188,9 +201,11 @@ async def registro(
             # error genérico
             raise HTTPException(status_code=500, detail=str(ultimo_error))
 
-    # ── Clasificar gasto con Groq ─────────────────────────
+    # # # ── Clasificar gasto con Groq ─────────────────────────
     clasificacion: Optional[ClasificacionGasto] = None
     error_clasificacion: Optional[str] = None
+
+    
 
     if factura.detalle:
         try:
@@ -204,23 +219,118 @@ async def registro(
     else:
         error_clasificacion = "No se detectaron conceptos para clasificar."
 
+    
+
     # ── Respuesta final ───────────────────────────────────
-    respuesta = {
-        "success": True,
-        "message": "Factura procesada correctamente",
-        "data": factura.model_dump(),
-        "id_usuario": id_usuario,
-        "id_form": id,
-        "clasificacion": {
-            "categoria": clasificacion.categoria if clasificacion else None,
-            "confianza": clasificacion.confianza if clasificacion else None,
-            "error": error_clasificacion
-        }
-    }
+    # respuesta = {
+    #     "success": True,
+    #     "message": "Factura procesada correctamente",
+    #     "data": factura.model_dump(),
+    #     "id_usuario": id_usuario,
+    #     "id_form": id,
+    #     "clasificacion": {
+    #         "categoria": clasificacion.categoria if clasificacion else None,
+    #         "confianza": clasificacion.confianza if clasificacion else None,
+    #         "error": error_clasificacion
+    #     }
+    # }
+    
 
     # Si hubo error de clasificación, ajustamos el mensaje pero no fallamos
-    if error_clasificacion:
-        respuesta["message"] = "Factura procesada, pero la clasificación falló."
-        respuesta["success"] = False
+    # if error_clasificacion:
+    #     respuesta["message"] = "Factura procesada, pero la clasificación falló."
+    #     respuesta["success"] = False
 
-    return respuesta
+    
+
+    # factura = FacturaExtraida(**OCR_DATA['data'])
+    # clasificacion=ClasificacionGasto(**OCR_DATA['clasificacion'])
+
+
+    ruc=factura.ruc_empresa
+    nombre_empresa=factura.empresa
+    nombre_categoria=clasificacion.categoria
+
+
+    registro_empresa = await db.execute(
+                select(Empresas).where(Empresas.Ruc == ruc)
+            )
+    empresa=registro_empresa.scalars().first()
+    if not empresa:
+        empresa_data = {
+                "id": 0,
+                "nombre": nombre_empresa,
+                "ruc": ruc,
+                "logo_img": "",
+            }
+        
+            
+        empresa=await registrar_empresa(db, empresa_data)
+        if isinstance(empresa, dict) and empresa.get("error"):
+            raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail=empresa["error"]
+                    )
+        
+    
+
+    result_categoria = await db.execute(
+            select(CategoriasGastos).where(
+                CategoriasGastos.NombreCategoria == nombre_categoria,
+                CategoriasGastos.UsuarioId == id_usuario,
+            )
+        )
+    categoria_usuario=result_categoria.scalars().first()
+
+    if not categoria_usuario:
+        categoria_data = {
+                "id": 0,
+                "user_id": id_usuario,
+                "nombre": nombre_categoria,
+            }
+        categoria_usuario = await registrar_categoria(db, categoria_data)
+        if isinstance(categoria_usuario, dict) and categoria_usuario.get("error"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=categoria_usuario["error"])
+        
+    id_categoria=categoria_usuario.Id
+
+
+    movimiento_data = {
+                "id": id,
+                "user_id": id_usuario,
+                "total": int(factura.total),
+                "iva_diez": int(factura.iva_diez),
+                "iva_cinco": int(factura.iva_cinco),
+                "ruc": factura.ruc_empresa,
+                "id_categoria": id_categoria,
+                "nro_factura": factura.numero_factura,
+                "imagenes": imagenes,
+                "tipo_registro":"Automatico" ,
+                "fecha_gasto": date.fromisoformat(factura.fecha),
+            }
+    
+    registro_gasto = await registrar(db, movimiento_data)
+    if isinstance(registro_gasto, dict) and registro_gasto.get("error"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=registro_gasto["error"])
+
+    # # respuesta = {
+    # #     "data":factura,
+    # #     "clasificacion":clasificacion,
+    # #      "EMPRESA":id_empresa,
+    # #      "Categoria":id_categoria
+    # # }
+    return {
+                "status": "success",
+                "id": registro_gasto.Id,
+                "user_id": registro_gasto.UsuarioId,
+                "total": registro_gasto.TotalGasto,
+                "iva_diez": registro_gasto.IvaDiez,
+                "iva_cinco": registro_gasto.IvaCinco,
+                "fecha_gasto": str(registro_gasto.FechaGasto),
+                "tipo_registro": registro_gasto.TipoRegistro.value if hasattr(registro_gasto.TipoRegistro, 'value') else str(registro_gasto.TipoRegistro),
+                "categoria_id": registro_gasto.CategoriaId,
+                "empresa_id": registro_gasto.EmpresaId,
+                "nro_factura": registro_gasto.NumeroFactura,
+            }
+
+    
