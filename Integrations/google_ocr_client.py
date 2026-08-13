@@ -2,13 +2,12 @@ from google import genai
 from google.genai import types
 import json
 from pydantic import BaseModel
-from typing import List, Optional, Union
+from typing import List, Optional
 from Config.settings import settings
 
 GEMINI_API_KEY = settings.GEMINI_API_KEY
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Modelo recomendado para OCR rápido y barato
 MODEL = "gemini-3.5-flash"
 
 # ── Schemas ───────────────────────────────────────────────
@@ -21,6 +20,7 @@ class FacturaExtraida(BaseModel):
     iva_diez: Optional[float] = None
     iva_cinco: Optional[float] = None
     fiabilidad: str = "Malo"  # Excelente, Bueno, Malo
+    detalle: List[str] = []   # Conceptos/descripciones de los artículos
 
 
 # ── Prompt optimizado ─────────────────────────────────────
@@ -36,7 +36,8 @@ ESTRUCTURA DE RESPUESTA:
   "total": 123.45,
   "iva_diez": 55.00,
   "iva_cinco": 11.00,
-  "fiabilidad": "Excelente"
+  "fiabilidad": "Excelente",
+  "detalle": ["Leche Entera 1L", "Pan Integral", "Café Molido 250g"]
 }
 
 INSTRUCCIONES DE DETECCIÓN POR CAMPO:
@@ -77,7 +78,19 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
    - Extrae el monto numérico correspondiente al IVA al 5%.
    - Si no aparece, devuelve null.
 
-8. FIABILIDAD (campo obligatorio):
+8. DETALLE (lista de conceptos de artículos):
+   - Busca la sección de artículos/conceptos/descripción de la factura, generalmente en formato de tabla o grilla.
+   - Etiquetas comunes de la sección: Artículos, Conceptos, Descripción, Detalle, Productos, Items, Mercaderías, Servicios.
+   - Extrae SOLO el nombre/concepto/descripción de cada artículo. NO incluyas cantidades, precios unitarios, totales por línea, códigos de barrar ni números de ítem.
+   - Ejemplo de entrada en factura:
+     "1  Leche Entera 1L    5.000    5.000"
+     "2  Pan Integral       3.000    3.000"
+   - Ejemplo de salida: ["Leche Entera 1L", "Pan Integral"]
+   - Si un artículo tiene descripción larga que ocupa varias líneas, únelo en un solo string.
+   - Si no hay artículos detectados, devuelve una lista vacía [].
+   - Ignora filas de totales, subtotales, descuentos globales o textos como "Total de items".
+
+9. FIABILIDAD (campo obligatorio):
    Evalúa qué tan seguro estás de la extracción basándote en:
    - Nitidez de la imagen
    - Claridad del texto
@@ -93,6 +106,7 @@ REGLAS GENERALES:
 - Si no encuentras un campo, usa null (no omitas la clave).
 - Los valores numéricos deben ser números (float o int), NUNCA strings con símbolos.
 - La fecha SIEMPRE en formato ISO: YYYY-MM-DD.
+- El campo "detalle" SIEMPRE debe ser un array de strings, nunca null.
 - Responde SOLO con el JSON, sin markdown, sin explicaciones, sin texto adicional.
 """
 

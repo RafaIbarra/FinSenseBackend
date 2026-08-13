@@ -7,6 +7,7 @@ from Common.routers_factory import generar_router
 from Config.settings import get_db,settings
 from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
 from Integrations.google_ocr_client import extraer_factura,FacturaExtraida
+from Integrations.groq_clasificador import clasificar_gasto,ClasificacionGasto
 router_movimientos = generar_router('/gastos')
 
 @router_movimientos.post("/registro-manual")
@@ -94,7 +95,8 @@ async def registro(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Registra un movimiento extrayendo datos de factura desde 1 o 2 imágenes.
+    Registra un movimiento extrayendo datos de factura desde 1 o 2 imágenes,
+    y clasifica el gasto según los conceptos detectados.
 
     - **imagenes**: Lista de archivos de imagen. Mínimo 1, máximo 2.
       El frontend debe enviar ambos archivos con el mismo field name: `imagenes`.
@@ -129,14 +131,13 @@ async def registro(
             )
 
     # ── Leer imágenes en bytes ─────────────────────────────
-    # FastAPI maneja UploadFile como un stream; lo leemos completo en memoria
     bytes_1 = await imagenes[0].read()
     bytes_2 = await imagenes[1].read() if len(imagenes) > 1 else None
 
     mime_1 = imagenes[0].content_type or "image/jpeg"
     mime_2 = imagenes[1].content_type if len(imagenes) > 1 else "image/jpeg"
 
-    # ── Extraer datos con Gemini ──────────────────────────
+    # ── Extraer datos con Gemini (OCR) ────────────────────
     try:
         factura: FacturaExtraida = extraer_factura(
             imagen_1=bytes_1,
@@ -155,27 +156,39 @@ async def registro(
             detail=f"Error del servicio OCR: {str(e)}"
         )
 
-    # ── Aquí va tu lógica de negocio ──────────────────────
-    # Ejemplo: guardar en base de datos, etc.
-    # movimiento = Movimiento(
-    #     id_usuario=id_usuario,
-    #     empresa=factura.empresa,
-    #     ruc_empresa=factura.ruc_empresa,
-    #     fecha=factura.fecha,
-    #     numero_factura=factura.numero_factura,
-    #     total=factura.total,
-    #     iva_diez=factura.iva_diez,
-    #     iva_cinco=factura.iva_cinco,
-    #     fiabilidad=factura.fiabilidad,
-    #     # ... tus campos
-    # )
-    # db.add(movimiento)
-    # await db.commit()
+    # ── Clasificar gasto con Groq ─────────────────────────
+    clasificacion: Optional[ClasificacionGasto] = None
+    error_clasificacion: Optional[str] = None
 
-    return {
+    if factura.detalle:
+        try:
+            clasificacion = clasificar_gasto(factura.detalle)
+        except ValueError as e:
+            # Gemini funcionó pero Groq devolvió basura — no rompemos todo
+            error_clasificacion = f"Respuesta inválida del clasificador: {str(e)}"
+        except RuntimeError as e:
+            # Groq no respondió (503, rate limit, etc.) — no rompemos todo
+            error_clasificacion = f"Servicio de clasificación no disponible: {str(e)}"
+    else:
+        error_clasificacion = "No se detectaron conceptos para clasificar."
+
+    # ── Respuesta final ───────────────────────────────────
+    respuesta = {
         "success": True,
         "message": "Factura procesada correctamente",
         "data": factura.model_dump(),
         "id_usuario": id_usuario,
         "id_form": id,
+        "clasificacion": {
+            "categoria": clasificacion.categoria if clasificacion else None,
+            "confianza": clasificacion.confianza if clasificacion else None,
+            "error": error_clasificacion
+        }
     }
+
+    # Si hubo error de clasificación, ajustamos el mensaje pero no fallamos
+    if error_clasificacion:
+        respuesta["message"] = "Factura procesada, pero la clasificación falló."
+        respuesta["success"] = False
+
+    return respuesta

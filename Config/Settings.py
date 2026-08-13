@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     DB_NAME: str
 
     GEMINI_API_KEY:str
+    GROQ_API_KEY:str
     JWT_ALGORITHM:str="HS256"
 
     @property
