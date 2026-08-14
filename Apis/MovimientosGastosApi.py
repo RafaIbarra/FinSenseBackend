@@ -2,7 +2,7 @@ from sqlalchemy import select
 from Models.Empresas import Empresas
 from Models.CategoriasGastos import CategoriasGastos
 
-from datetime import date
+from datetime import date,datetime
 from typing import List, Optional
 
 from fastapi import Depends, Form, HTTPException, Request, Response,status,File, UploadFile
@@ -16,6 +16,8 @@ from DataTest.data import OCR_DATA
 
 from Repositories.empresas_repo import registrar as registrar_empresa
 from Repositories.categorias_gastos_repo import registrar as registrar_categoria
+from Repositories.imagenes_pendientes_repo import registrar_imagenes_pendientes
+
 from Integrations.r2_storage import *
 router_movimientos = generar_router('/gastos')
 
@@ -184,7 +186,7 @@ async def registro(
         except Exception as e:
             ultimo_error = e
             continue
-
+    error_comunicacion_modelo=False
     if factura is None:
         # Retornar sólo el error del último intento
         if isinstance(ultimo_error, ValueError):
@@ -193,144 +195,156 @@ async def registro(
                 detail=f"No se pudo interpretar la respuesta del OCR: {str(ultimo_error)}"
             )
         elif isinstance(ultimo_error, RuntimeError):
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Error del servicio OCR: {str(ultimo_error)}"
-            )
+            # raise HTTPException(
+            #     status_code=status.HTTP_502_BAD_GATEWAY,
+            #     detail=f"Error del servicio OCR: {str(ultimo_error)}"
+            # )
+            error_comunicacion_modelo=True
         else:
             # error genérico
-            raise HTTPException(status_code=500, detail=str(ultimo_error))
+            error_comunicacion_modelo=True
+            # raise HTTPException(status_code=500, detail=str(ultimo_error))
+        
+    if error_comunicacion_modelo:
+        ts = datetime.now()
+        formateado=ts.strftime("%Y_%m_%d_T_%H_%M_%S")
+        codigo_tarea = f'U_{id_usuario}_F_{formateado}'
+        
+        
+        try:
+            pendientes=await registrar_imagenes_pendientes(db,codigo_tarea,id_usuario,imagenes,str(ultimo_error))
+            
+            success_registro = pendientes.get("success_registro")
+            if success_registro:
+                return {'detail':'La factura no se proceso, pero se almacenaron como pendientes, recibara un correo cuando se procesen'}
+            else:
+                mensaje_registro = pendientes.get("mensaje", "")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=mensaje_registro
+                                      )
+
+        except Exception as e:
+            raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Error registro pendientes: {str(e)}"
+                        )
+    else:
 
     # # # ── Clasificar gasto con Groq ─────────────────────────
-    clasificacion: Optional[ClasificacionGasto] = None
-    error_clasificacion: Optional[str] = None
+        clasificacion: Optional[ClasificacionGasto] = None
+        error_clasificacion: Optional[str] = None
 
-    
-
-    if factura.detalle:
-        try:
-            clasificacion = clasificar_gasto(factura.detalle)
-        except ValueError as e:
-            # Gemini funcionó pero Groq devolvió basura — no rompemos todo
-            error_clasificacion = f"Respuesta inválida del clasificador: {str(e)}"
-        except RuntimeError as e:
-            # Groq no respondió (503, rate limit, etc.) — no rompemos todo
-            error_clasificacion = f"Servicio de clasificación no disponible: {str(e)}"
-    else:
-        error_clasificacion = "No se detectaron conceptos para clasificar."
-
-    
-
-    # ── Respuesta final ───────────────────────────────────
-    # respuesta = {
-    #     "success": True,
-    #     "message": "Factura procesada correctamente",
-    #     "data": factura.model_dump(),
-    #     "id_usuario": id_usuario,
-    #     "id_form": id,
-    #     "clasificacion": {
-    #         "categoria": clasificacion.categoria if clasificacion else None,
-    #         "confianza": clasificacion.confianza if clasificacion else None,
-    #         "error": error_clasificacion
-    #     }
-    # }
-    
-
-    # Si hubo error de clasificación, ajustamos el mensaje pero no fallamos
-    # if error_clasificacion:
-    #     respuesta["message"] = "Factura procesada, pero la clasificación falló."
-    #     respuesta["success"] = False
-
-    
-
-    # factura = FacturaExtraida(**OCR_DATA['data'])
-    # clasificacion=ClasificacionGasto(**OCR_DATA['clasificacion'])
-
-
-    ruc=factura.ruc_empresa
-    nombre_empresa=factura.empresa
-    nombre_categoria=clasificacion.categoria
-
-
-    registro_empresa = await db.execute(
-                select(Empresas).where(Empresas.Ruc == ruc)
-            )
-    empresa=registro_empresa.scalars().first()
-    if not empresa:
-        empresa_data = {
-                "id": 0,
-                "nombre": nombre_empresa,
-                "ruc": ruc,
-                "logo_img": "",
-            }
         
+        nombre_categoria=""
+        if factura.detalle:
+            try:
+                clasificacion = clasificar_gasto(factura.detalle)
+                nombre_categoria=clasificacion.categoria
+            except ValueError as e:
+                # Gemini funcionó pero Groq devolvió basura — no rompemos todo
+                error_clasificacion = f"Respuesta inválida del clasificador: {str(e)}"
+                nombre_categoria="S/N"
+            except RuntimeError as e:
+                # Groq no respondió (503, rate limit, etc.) — no rompemos todo
+                nombre_categoria="S/N"
+        else:
+            nombre_categoria="Varios"
+
+        
+
+        # ── Respuesta final ───────────────────────────────────
+        # respuesta = {
+        #     "success": True,
+        #     "message": "Factura procesada correctamente",
+        #     "data": factura.model_dump(),
+        #     "id_usuario": id_usuario,
+        #     "id_form": id,
+        #     "clasificacion": {
+        #         "categoria": clasificacion.categoria if clasificacion else None,
+        #         "confianza": clasificacion.confianza if clasificacion else None,
+        #         "error": error_clasificacion
+        #     }
+        # }
+        
+
+        # Si hubo error de clasificación, ajustamos el mensaje pero no fallamos
+        # if error_clasificacion:
+        #     respuesta["message"] = "Factura procesada, pero la clasificación falló."
+        #     respuesta["success"] = False
+
+        
+
+        # factura = FacturaExtraida(**OCR_DATA['data'])
+        # clasificacion=ClasificacionGasto(**OCR_DATA['clasificacion'])
+
+
+        ruc=factura.ruc_empresa
+        nombre_empresa=factura.empresa
+        
+
+
+        registro_empresa = await db.execute(
+                    select(Empresas).where(Empresas.Ruc == ruc)
+                )
+        empresa=registro_empresa.scalars().first()
+        if not empresa:
+            empresa_data = {
+                    "id": 0,
+                    "nombre": nombre_empresa,
+                    "ruc": ruc,
+                    "logo_img": "",
+                }
             
-        empresa=await registrar_empresa(db, empresa_data)
-        if isinstance(empresa, dict) and empresa.get("error"):
-            raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, 
-                    detail=empresa["error"]
-                    )
+                
+            empresa=await registrar_empresa(db, empresa_data)
+            if isinstance(empresa, dict) and empresa.get("error"):
+                raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST, 
+                        detail=empresa["error"]
+                        )
+            
         
-    
 
-    result_categoria = await db.execute(
-            select(CategoriasGastos).where(
-                CategoriasGastos.NombreCategoria == nombre_categoria,
-                CategoriasGastos.UsuarioId == id_usuario,
+        result_categoria = await db.execute(
+                select(CategoriasGastos).where(
+                    CategoriasGastos.NombreCategoria == nombre_categoria,
+                    CategoriasGastos.UsuarioId == id_usuario,
+                )
             )
-        )
-    categoria_usuario=result_categoria.scalars().first()
+        categoria_usuario=result_categoria.scalars().first()
 
-    if not categoria_usuario:
-        categoria_data = {
-                "id": 0,
-                "user_id": id_usuario,
-                "nombre": nombre_categoria,
-            }
-        categoria_usuario = await registrar_categoria(db, categoria_data)
-        if isinstance(categoria_usuario, dict) and categoria_usuario.get("error"):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=categoria_usuario["error"])
+        if not categoria_usuario:
+            categoria_data = {
+                    "id": 0,
+                    "user_id": id_usuario,
+                    "nombre": nombre_categoria,
+                }
+            categoria_usuario = await registrar_categoria(db, categoria_data)
+            if isinstance(categoria_usuario, dict) and categoria_usuario.get("error"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=categoria_usuario["error"])
+            
+        id_categoria=categoria_usuario.Id
+
+
+        movimiento_data = {
+                    "id": id,
+                    "user_id": id_usuario,
+                    "total": int(factura.total),
+                    "iva_diez": int(factura.iva_diez),
+                    "iva_cinco": int(factura.iva_cinco),
+                    "ruc": factura.ruc_empresa,
+                    "id_categoria": id_categoria,
+                    "nro_factura": factura.numero_factura,
+                    "imagenes": imagenes,
+                    "tipo_registro":"Automatico" ,
+                    "fecha_gasto": date.fromisoformat(factura.fecha),
+                }
         
-    id_categoria=categoria_usuario.Id
-
-
-    movimiento_data = {
-                "id": id,
-                "user_id": id_usuario,
-                "total": int(factura.total),
-                "iva_diez": int(factura.iva_diez),
-                "iva_cinco": int(factura.iva_cinco),
-                "ruc": factura.ruc_empresa,
-                "id_categoria": id_categoria,
-                "nro_factura": factura.numero_factura,
-                "imagenes": imagenes,
-                "tipo_registro":"Automatico" ,
-                "fecha_gasto": date.fromisoformat(factura.fecha),
-            }
-    
-    registro_gasto = await registrar(db, movimiento_data)
-    if isinstance(registro_gasto, dict) and registro_gasto.get("error"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=registro_gasto["error"])
-
-    # # respuesta = {
-    # #     "data":factura,
-    # #     "clasificacion":clasificacion,
-    # #      "EMPRESA":id_empresa,
-    # #      "Categoria":id_categoria
-    # # }
-    return {
-                "status": "success",
-                "id": registro_gasto.Id,
-                "user_id": registro_gasto.UsuarioId,
-                "total": registro_gasto.TotalGasto,
-                "iva_diez": registro_gasto.IvaDiez,
-                "iva_cinco": registro_gasto.IvaCinco,
-                "fecha_gasto": str(registro_gasto.FechaGasto),
-                "tipo_registro": registro_gasto.TipoRegistro.value if hasattr(registro_gasto.TipoRegistro, 'value') else str(registro_gasto.TipoRegistro),
-                "categoria_id": registro_gasto.CategoriaId,
-                "empresa_id": registro_gasto.EmpresaId,
-                "nro_factura": registro_gasto.NumeroFactura,
-            }
+        registro_gasto = await registrar(db, movimiento_data)
+        if isinstance(registro_gasto, dict) and registro_gasto.get("error"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=registro_gasto["error"])
+        return {
+                    'detail':'Su factura fue procesada'
+                }
 
     

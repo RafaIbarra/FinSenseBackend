@@ -12,6 +12,7 @@ client = Groq(api_key=GROQ_API_KEY)
 MODEL = getattr(settings, "GROQ_MODEL", "llama-3.1-8b-instant")
 
 
+
 class ClasificacionGasto(BaseModel):
     categoria: str
     confianza: str  # Alta, Media, Baja
@@ -19,7 +20,7 @@ class ClasificacionGasto(BaseModel):
 
 # Categorías predefinidas. El modelo debe elegir UNA de estas.
 CATEGORIAS = [
-    "Alimentación",
+    "Alimentacion",
     "Transporte",
     "Salud",
     "Entretenimiento",
@@ -43,7 +44,7 @@ CATEGORÍAS DISPONIBLES (elige EXACTAMENTE una de esta lista):
 
 REGLAS:
 - Analiza los conceptos como un conjunto, no individualmente.
-- Si la mayoría son comestibles → Alimentación.
+- Si la mayoría son comestibles → Alimentacion.
 - Si hay nafta, lubricantes, peajes → Nafta/Combustible o Transporte.
 - Si son medicamentos, consultas, análisis → Salud.
 - Si son películas, juegos, eventos → Entretenimiento.

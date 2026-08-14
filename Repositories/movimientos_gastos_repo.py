@@ -6,6 +6,7 @@ from Models.Empresas import Empresas
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Integrations.r2_storage import *
+from Utils.img_works import registrar_imagenes
 
 async def obtener_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
     result = await db.execute(
@@ -98,37 +99,13 @@ async def registrar(db: AsyncSession, movimiento: dict):
             imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
             for index, img in enumerate(imagenes[:2], start=1):
                 try:
-                    if hasattr(img, "read") and callable(img.read):
-                        try:
-                            await img.seek(0)
-                        except Exception:
-                            pass
-                        file_bytes = await img.read()
-                        file_name = getattr(img, "filename", None) or getattr(img, "name", None) or f"factura_{index}.jpg"
-                    elif isinstance(img, (bytes, bytearray)):
-                        file_bytes = bytes(img)
-                        file_name = f"factura_{index}.jpg"
-                    elif isinstance(img, dict):
-                        file_bytes = img.get("bytes") or img.get("content") or b""
-                        file_name = img.get("filename") or img.get("name") or f"factura_{index}.jpg"
-                    else:
-                        continue
-
-                    if not file_bytes:
-                        continue
-
-                    resultado = r2_storage.upload_gasto_image(
-                        file_bytes=file_bytes,
-                        file_name=file_name,
-                    )
-
-                    if not resultado.get('success'):
-                        print(f'Error al subir imagen {file_name}: {resultado.get("message")}')
-                        continue
+                    resultado = await registrar_imagenes(img, {"index": index})
+                    url_imagen = resultado.get("url")
+                    mensaje_imagen = resultado.get("mensaje", "")
 
                     imagen = MovimientosGastosImagenes(
-                        UrlImagen=resultado['url'],
-                        ReferenciaCola=index,
+                        UrlImagen=url_imagen or "",
+                        ReferenciaCola="",
                         MovimientoGastoId=nuevo_movimiento.Id,
                     )
                     db.add(imagen)
