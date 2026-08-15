@@ -99,7 +99,8 @@ def clasificar_gasto(conceptos: List[str]) -> ClasificacionGasto:
             ],
             temperature=0.1,  # Baja creatividad, respuesta más determinista
             max_tokens=100,   # La respuesta es corta (JSON chiquito)
-            response_format={"type": "json_object"}  # Forzar JSON
+            response_format={"type": "json_object"},  # Forzar JSON
+            # timeout=20
         )
 
         raw = response.choices[0].message.content.strip()

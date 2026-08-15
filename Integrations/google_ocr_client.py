@@ -182,7 +182,8 @@ def extraer_factura(
                     role="user",
                     parts=parts
                 )
-            ]
+            ],
+            request_options={"timeout": 5}
         )
 
         data = _limpiar_respuesta(response.text, model=model)

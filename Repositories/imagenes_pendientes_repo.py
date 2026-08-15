@@ -4,19 +4,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Models.ImagenesPendientes import ImagenesPendientes
 from Utils.img_works import registrar_imagenes
 from Integrations.r2_storage import *
-
+from Schemas.Respuestas import RespuestaFuncion
+from Utils.error_utils import *
 async def registrar_imagenes_pendientes(db: AsyncSession, codigo_tarea: str, id_usuario: int, imagenes, motivo: str):
     """Recibe imágenes, las sube a R2 y registra sus URLs pendientes para una tarea y usuario."""
     imagenes_subidas = []
     try:
         if not codigo_tarea:
-            return {"success_registro": False, "mensaje": "El código de tarea es obligatorio"}
+            return RespuestaFuncion(success_registro=False, mensaje="El código de tarea es obligatorio")
 
         if not id_usuario:
-            return {"success_registro": False, "mensaje": "El usuario es obligatorio"}
+            return RespuestaFuncion(success_registro=False, mensaje="El usuario es obligatorio")
 
         if not imagenes:
-            return {"success_registro": False, "mensaje": "Debe enviarse al menos una imagen"}
+            return RespuestaFuncion(success_registro=False, mensaje="Debe enviarse al menos una imagen")
 
         imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
 
@@ -45,7 +46,7 @@ async def registrar_imagenes_pendientes(db: AsyncSession, codigo_tarea: str, id_
                     r2_storage.delete_gasto_image(ur)
                 except Exception:
                     pass
-            return {"success_registro": False, "mensaje": mensaje_imagen}
+            return RespuestaFuncion(success_registro=False, mensaje=mensaje_imagen)
 
         # --- Paso 2: registrar todas en la BD (todo o nada) ---
         try:
@@ -61,7 +62,7 @@ async def registrar_imagenes_pendientes(db: AsyncSession, codigo_tarea: str, id_
 
             await db.commit()
 
-        except Exception:
+        except Exception as e:
             # Si algo falló al registrar, se revierte la BD y se borran todas las imágenes de R2
             await db.rollback()
             for ur in imagenes_subidas:
@@ -69,12 +70,14 @@ async def registrar_imagenes_pendientes(db: AsyncSession, codigo_tarea: str, id_
                     r2_storage.delete_gasto_image(ur)
                 except Exception:
                     pass
-            return {"success_registro": False, "mensaje": "No se pudieron registrar las imágenes, se revirtieron los cambios"}
+            error_bd=limpiar_mensaje_error_bd(str(e))
+            msj=f"No se pudieron registrar las imágenes, se revirtieron los cambios; {error_bd}"
+            return RespuestaFuncion(success_registro=False, mensaje=msj)
 
         for registro in registros:
             await db.refresh(registro)
 
-        return {"success_registro": True, "mensaje": ""}
+        return RespuestaFuncion()
 
     except Exception as e:
         await db.rollback()
@@ -84,4 +87,4 @@ async def registrar_imagenes_pendientes(db: AsyncSession, codigo_tarea: str, id_
                 r2_storage.delete_gasto_image(ur)
             except Exception:
                 pass
-        return {"success_registro": False, "mensaje": str(e)}
+        return RespuestaFuncion(success_registro=False, mensaje=str(e))

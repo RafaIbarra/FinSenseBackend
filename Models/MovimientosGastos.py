@@ -14,9 +14,7 @@ class TipoRegistroEnum(enum.Enum):
 
 class MovimientosGastos(Base):
     __tablename__ = "MovimientosGastos"
-    __table_args__ = (
-        UniqueConstraint("EmpresaId", "NumeroFactura", name="uq_movimientosgastos_empresa_numerofactura"),
-    )
+    
 
     Id = Column("Id", Integer, primary_key=True, index=True)
     FechaRegistro = Column("FechaRegistro", DateTime(timezone=True), server_default=func.now(), nullable=False)

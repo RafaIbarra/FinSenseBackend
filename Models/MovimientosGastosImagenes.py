@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func,Text
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -12,5 +12,5 @@ class MovimientosGastosImagenes(Base):
     UrlImagen = Column("UrlImagen", String(255), nullable=True)
     ReferenciaCola = Column("ReferenciaCola", String(255), nullable=True)
     MovimientoGastoId = Column("MovimientoGastoId", Integer, ForeignKey("MovimientosGastos.Id"), nullable=False, index=True)
-
+    ErrorUploadImg=Column("ErrorUploadImg", Text, nullable=True)
     movimiento_gasto = relationship("MovimientosGastos", back_populates="imagenes")

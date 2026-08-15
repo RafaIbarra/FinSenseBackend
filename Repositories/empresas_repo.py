@@ -2,7 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.Empresas import Empresas
-
+from Schemas.Respuestas import RespuestaFuncion
+from Utils.error_utils import limpiar_mensaje_error_bd
 
 async def listar_empresas(db: AsyncSession):
     """Devuelve todas las empresas ordenadas por la más reciente."""
@@ -20,7 +21,7 @@ async def registrar(db: AsyncSession, empresa: dict):
     """
     try:
         if not empresa:
-            return {"error": "Datos de la empresa no proporcionados"}
+            return RespuestaFuncion(success_registro=False, mensaje="Datos de la empresa no proporcionados")
 
         empresa_id = empresa.get("id", 0) or 0
         nombre = str(empresa.get("nombre", "")).strip()
@@ -35,10 +36,10 @@ async def registrar(db: AsyncSession, empresa: dict):
             url_logo = getattr(logo_img, "filename", None) or None
 
         if not nombre:
-            return {"error": "El nombre de la empresa es obligatorio"}
+            return RespuestaFuncion(success_registro=False, mensaje="El nombre de la empresa es obligatorio")
 
         if not ruc:
-            return {"error": "El RUC de la empresa es obligatorio"}
+            return RespuestaFuncion(success_registro=False, mensaje="El RUC de la empresa es obligatorio")
 
         if empresa_id > 0:
             result = await db.execute(
@@ -46,18 +47,21 @@ async def registrar(db: AsyncSession, empresa: dict):
             )
             registro = result.scalars().first()
             if not registro:
-                return {"error": f"Empresa con id {empresa_id} no encontrada"}
+                return RespuestaFuncion(success_registro=False, mensaje=f"Empresa con id {empresa_id} no encontrada")
+            try:
+                registro.NombreEmpresa = nombre
+                registro.Ruc = ruc
+                if logo_img is not None:
+                    registro.UrlLogo = url_logo
+                elif empresa.get("url_logo") is not None:
+                    registro.UrlLogo = empresa["url_logo"]
 
-            registro.NombreEmpresa = nombre
-            registro.Ruc = ruc
-            if logo_img is not None:
-                registro.UrlLogo = url_logo
-            elif empresa.get("url_logo") is not None:
-                registro.UrlLogo = empresa["url_logo"]
-
-            await db.commit()
-            await db.refresh(registro)
-            return registro
+                await db.commit()
+                await db.refresh(registro)
+            except Exception as e:
+                await db.rollback()
+                return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
+            return RespuestaFuncion()
 
         
         empresa_existente = await db.execute(
@@ -65,22 +69,25 @@ async def registrar(db: AsyncSession, empresa: dict):
         )
         
         if empresa_existente.scalars().first():
-            return {"error": "Ya existe una empresa con ese RUC"}
+            return RespuestaFuncion(success_registro=False, mensaje="Ya existe una empresa con ese RUC")
+        try:
+            nueva_empresa = Empresas(
+                NombreEmpresa=nombre,
+                Ruc=ruc,
+                UrlLogo=url_logo,
+            )
 
-        nueva_empresa = Empresas(
-            NombreEmpresa=nombre,
-            Ruc=ruc,
-            UrlLogo=url_logo,
-        )
-
-        db.add(nueva_empresa)
-        await db.commit()
-        await db.refresh(nueva_empresa)
-        return nueva_empresa
+            db.add(nueva_empresa)
+            await db.commit()
+            await db.refresh(nueva_empresa)
+        except Exception as e:
+            await db.rollback()
+            return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
+        return RespuestaFuncion()
 
     except Exception as e:
         await db.rollback()
-        return {"error": str(e)}
+        return RespuestaFuncion(success_registro=False,  mensaje=limpiar_mensaje_error_bd(str(e)))
 
 
 async def obtener_empresa(db: AsyncSession, empresa_id: int):
@@ -92,12 +99,16 @@ async def obtener_empresa(db: AsyncSession, empresa_id: int):
 
 async def eliminar_empresa(db: AsyncSession, empresa_id: int):
     if not empresa_id:
-        return {"error": "La empresa es obligatoria"}
+        return RespuestaFuncion(success_registro=False, mensaje="La empresa es obligatoria")
 
     empresa = await obtener_empresa(db, empresa_id)
     if not empresa:
-        return {"error": f"Empresa con id {empresa_id} no encontrada"}
-
-    await db.delete(empresa)
-    await db.commit()
-    return {"status": "success", "id": empresa_id, "deleted": True}
+        return RespuestaFuncion(success_registro=False, mensaje=f"Empresa con id {empresa_id} no encontrada")
+    try:
+        await db.delete(empresa)
+        await db.commit()
+        
+    except Exception as e:
+        await db.rollback()
+        return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
+    return RespuestaFuncion()
