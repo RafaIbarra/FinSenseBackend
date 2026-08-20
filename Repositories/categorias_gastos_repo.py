@@ -5,32 +5,29 @@ from Models.CategoriasGastos import CategoriasGastos
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 
-async def listar_categorias(db: AsyncSession, usuario_id: int):
-    """Devuelve todas las categorías del usuario ordenadas por la más reciente."""
+async def listar_categorias(db: AsyncSession):
+    """Devuelve todas las categorías ordenadas por la más reciente."""
     result = await db.execute(
         select(CategoriasGastos)
-        .where(CategoriasGastos.UsuarioId == usuario_id)
         .order_by(CategoriasGastos.Id.desc())
     )
     return result.scalars().all()
 
 
 async def registrar(db: AsyncSession, categoria: dict):
-    """Registra o actualiza una categoría del usuario.
+    """Registra o actualiza una categoría.
 
     categoria debe incluir:
-    {id, user_id, nombre}
+    {id, nombre}
     """
     try:
         if not categoria:
             return RespuestaFuncion(success_registro=False, mensaje="Datos de la categoría no proporcionados")
 
         categoria_id = categoria.get("id", 0) or 0
-        usuario_id = categoria.get("user_id")
         nombre = str(categoria.get("nombre", "")).strip()
 
-        if not usuario_id:
-            return RespuestaFuncion(success_registro=False, mensaje="El usuario es obligatorio")
+        
 
         if not nombre:
             return RespuestaFuncion(success_registro=False, mensaje="El nombre de la categoría es obligatorio")
@@ -39,12 +36,12 @@ async def registrar(db: AsyncSession, categoria: dict):
             result = await db.execute(
                 select(CategoriasGastos).where(
                     CategoriasGastos.Id == categoria_id,
-                    CategoriasGastos.UsuarioId == usuario_id,
+                    
                 )
             )
             registro = result.scalars().first()
             if not registro:
-                return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada para el usuario")
+                return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada")
 
             registro.NombreCategoria = nombre
             await db.commit()
@@ -53,15 +50,15 @@ async def registrar(db: AsyncSession, categoria: dict):
 
         categoria_existente = await db.execute(
             select(CategoriasGastos).where(
-                CategoriasGastos.UsuarioId == usuario_id,
+                
                 CategoriasGastos.NombreCategoria == nombre,
             )
         )
         if categoria_existente.scalars().first():
-            return RespuestaFuncion(success_registro=False, mensaje="Ya existe una categoría con ese nombre para este usuario")
+            return RespuestaFuncion(success_registro=False, mensaje="Ya existe una categoría con ese nombre ")
 
         nueva_categoria = CategoriasGastos(
-            UsuarioId=usuario_id,
+            
             NombreCategoria=nombre,
         )
 
@@ -75,23 +72,22 @@ async def registrar(db: AsyncSession, categoria: dict):
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
 
 
-async def obtener_categoria(db: AsyncSession, categoria_id: int, usuario_id: int):
+async def obtener_categoria(db: AsyncSession, categoria_id: int):
     result = await db.execute(
         select(CategoriasGastos).where(
             CategoriasGastos.Id == categoria_id,
-            CategoriasGastos.UsuarioId == usuario_id,
         )
     )
     return result.scalars().first()
 
 
-async def eliminar_categoria(db: AsyncSession, categoria_id: int, usuario_id: int):
+async def eliminar_categoria(db: AsyncSession, categoria_id: int):
     if not categoria_id:
         return RespuestaFuncion(success_registro=False, mensaje="La categoría es obligatoria")
 
-    categoria = await obtener_categoria(db, categoria_id, usuario_id)
+    categoria = await obtener_categoria(db, categoria_id)
     if not categoria:
-        return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada para el usuario")
+        return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada")
     try:
         await db.delete(categoria)
         await db.commit()

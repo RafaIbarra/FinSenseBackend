@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from Models.Empresas import Empresas
 from Models.CategoriasGastos import CategoriasGastos
+from Models.ConceptosGastos import ConceptosGastos
 
 from datetime import date,datetime
 from typing import List, Optional
@@ -16,6 +17,7 @@ from DataTest.data import OCR_DATA
 
 from Repositories.empresas_repo import registrar as registrar_empresa
 from Repositories.categorias_gastos_repo import registrar as registrar_categoria
+from Repositories.conceptos_gastos_repo import registrar_conceptos_masivo
 from Repositories.imagenes_pendientes_repo import registrar_imagenes_pendientes
 
 from Integrations.r2_storage import *
@@ -122,11 +124,7 @@ async def registro(
     """
     try:
         id_usuario = int(request.state.id_usuario)
-        GEMINI_MODELS=[
-            "gemini-3.5-flash",
-            "gemini-2.5-flash",
-            "gemini-3.1-flash-lite"
-        ]
+        
 
         # ── Validaciones de imágenes ──────────────────────────
         if len(imagenes) == 0:
@@ -155,110 +153,111 @@ async def registro(
         mime_1 = imagenes[0].content_type or "image/jpeg"
         mime_2 = imagenes[1].content_type if len(imagenes) > 1 else "image/jpeg"
 
-        # ── Extraer datos con Gemini (OCR) intentando hasta 3 modelos ─
-        # Construir lista de modelos a probar: si el cliente envía `modelo`, probarlo primero
-        if modelo and modelo in GEMINI_MODELS:
-            modelos_a_probar = [modelo] + [m for m in GEMINI_MODELS if m != modelo]
-        else:
-            modelos_a_probar = GEMINI_MODELS.copy()
+        
 
         factura: Optional[FacturaExtraida] = None
-        ultimo_error: Optional[Exception] = None
         
+        # factura=await extraer_factura(
+        #                 imagen_1=bytes_1,
+        #                 imagen_2=bytes_2,
+        #                 mime_type_1=mime_1,
+        #                 mime_type_2=mime_2,
+        #                 time_out=180
+        #                 )
+        factura = FacturaExtraida(**OCR_DATA['data'])
         
-                    
-        
-        # for m in modelos_a_probar[:3]:
-        #     try:
-                
-        #         factura = extraer_factura(
-        #             imagen_1=bytes_1,
-        #             imagen_2=bytes_2,
-        #             mime_type_1=mime_1,
-        #             mime_type_2=mime_2,
-        #             model=m,
-        #         )
-        #         # éxito
-        #         break
-        #     except (ValueError, RuntimeError) as e:
-        #         ultimo_error = e
-        #         # intentar con el siguiente modelo
-        #         continue
-        #     except Exception as e:
-        #         ultimo_error = e
-        #         continue
-        error_comunicacion_modelo=False
+        print(f'la factura es : {factura}')
         nombre_categoria=""
-        # if factura is None:
-        #     # Retornar sólo el error del último intento
-        #     if isinstance(ultimo_error, ValueError):
-        #         raise HTTPException(
-        #             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        #             detail=f"No se pudo interpretar la respuesta del OCR: {str(ultimo_error)}"
-        #         )
-        #     elif isinstance(ultimo_error, RuntimeError):
-        #         # raise HTTPException(
-        #         #     status_code=status.HTTP_502_BAD_GATEWAY,
-        #         #     detail=f"Error del servicio OCR: {str(ultimo_error)}"
-        #         # )
-        #         error_comunicacion_modelo=True
-        #     else:
-        #         # error genérico
-        #         error_comunicacion_modelo=True
-        #         # raise HTTPException(status_code=500, detail=str(ultimo_error))
-            
-        # if error_comunicacion_modelo:
-        #     ts = datetime.now()
-        #     formateado=ts.strftime("%Y_%m_%d_T_%H_%M_%S")
-        #     codigo_tarea = f'U_{id_usuario}_F_{formateado}'
+        if not factura.success_registro:
+
+            ts = datetime.now()
+            formateado=ts.strftime("%Y_%m_%d_T_%H_%M_%S")
+            codigo_tarea = f'U_{id_usuario}_F_{formateado}'
             
             
-        #     try:
-        #         pendientes=await registrar_imagenes_pendientes(db,codigo_tarea,id_usuario,imagenes,str(ultimo_error))
+            try:
+                pendientes=await registrar_imagenes_pendientes(db,codigo_tarea,id_usuario,imagenes,str(factura.mensaje_error))
                 
                 
-        #         if pendientes.success_registro:
-        #             return {'detail':'La factura no se proceso, pero se almacenaron como pendientes, recibara un correo cuando se procesen'}
-        #         else:
+                if pendientes.success_registro:
+                    return {'detail':'La factura no se proceso, pero se almacenaron como pendientes, recibara un correo cuando se procesen'}
+                else:
                     
-        #             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=pendientes.mensaje)
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=pendientes.mensaje)
 
-        #     except Exception as e:
-        #         raise HTTPException(
-        #                         status_code=status.HTTP_400_BAD_REQUEST,
-        #                         detail=f"Error registro pendientes: {str(e)}"
-        #                     )
-        # else:
+            except Exception as e:
+                raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Error registro pendientes: {str(e)}"
+                            )
+        else:
 
-        # # # # ── Clasificar gasto con Groq ─────────────────────────
-        #     clasificacion: Optional[ClasificacionGasto] = None
-        #     error_clasificacion: Optional[str] = None
-
+        # # # ── Clasificar gasto con Groq ─────────────────────────
             
-            
-        #     if factura.detalle:
-        #         try:
-        #             clasificacion = clasificar_gasto(factura.detalle)
-        #             nombre_categoria=clasificacion.categoria
-        #         except ValueError as e:
+
+            if not factura.data_correct:
+                
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=factura.mensaje_error)
+            ids_conceptos=[]
+            if factura.detalle:
+                try:
+                    conceptos_factura = {
+                        detalle.strip()
+                        for detalle in factura.detalle
+                        if detalle and detalle.strip()
+                    }
                     
-        #             error_clasificacion = f"Respuesta inválida del clasificador: {str(e)}"
-        #             nombre_categoria="S/N"
-        #         except RuntimeError as e:
+                    if conceptos_factura:
+                        conceptos_existentes = await db.execute(
+                            select(ConceptosGastos).where(
+                                ConceptosGastos.NombreConcepto.in_(conceptos_factura)
+                            )
+                        )
+                        conceptos_existentes = list(conceptos_existentes.scalars().all())
+                        nombres_existentes = {
+                            concepto.NombreConcepto
+                            for concepto in conceptos_existentes
+                        }
+                        nombres_faltantes = conceptos_factura - nombres_existentes
+
+                        if nombres_faltantes:
+                            registros_conceptos=await registrar_conceptos_masivo(db, list(nombres_faltantes))
+                            if not registros_conceptos.success_registro:
+                                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=registros_conceptos.mensaje)
+                            
+                            data_new=registros_conceptos.data_registro
+                            conceptos_existentes.extend(data_new)
+                        ids_conceptos = [concepto.Id for concepto in conceptos_existentes]
                     
-        #             nombre_categoria="S/N"
-        #     else:
-        #         nombre_categoria="Varios"
 
+                    clasificacion: Optional[ClasificacionGasto] = None
+                    error_clasificacion: Optional[str] = None
+                    modelo_clasificador=""
+                    
+                    clasificacion = await clasificar_gasto(factura.detalle,time_out=180)
+                    
+                    nombre_categoria=clasificacion.categoria
+                    modelo_clasificador=clasificacion.modelo_clasificador
+                except ValueError as e:
+                    # print(f'ValueError {str(e)}')
+                    error_clasificacion = f"Respuesta inválida del clasificador: {str(e)}"
+                    nombre_categoria="S/N"
+                except RuntimeError as e:
+                    # print(f'RuntimeError {str(e)}')
+                    nombre_categoria="S/N"
+            else:
+                nombre_categoria="Varios"
+            print(f"los conceptos son {ids_conceptos}")        
+            print(type(ids_conceptos))
             
 
             
 
-        if not error_comunicacion_modelo:
+        # if not error_comunicacion_modelo:
 
-            factura = FacturaExtraida(**OCR_DATA['data'])
-            clasificacion=ClasificacionGasto(**OCR_DATA['clasificacion'])
-            nombre_categoria=clasificacion.categoria
+            # factura = FacturaExtraida(**OCR_DATA['data'])
+            # clasificacion=ClasificacionGasto(**OCR_DATA['clasificacion'])
+            #nombre_categoria=clasificacion.categoria
 
             ruc=factura.ruc_empresa
             nombre_empresa=factura.empresa
@@ -291,7 +290,6 @@ async def registro(
             result_categoria = await db.execute(
                     select(CategoriasGastos).where(
                         CategoriasGastos.NombreCategoria == nombre_categoria,
-                        CategoriasGastos.UsuarioId == id_usuario,
                     )
                 )
             categoria_usuario=result_categoria.scalars().first()
@@ -300,7 +298,6 @@ async def registro(
             else:
                 categoria_data = {
                         "id": 0,
-                        "user_id": id_usuario,
                         "nombre": nombre_categoria,
                     }
                 categoria_usuario = await registrar_categoria(db, categoria_data)
@@ -323,6 +320,8 @@ async def registro(
                             "imagenes": imagenes,
                             "tipo_registro":"Automatico" ,
                             "fecha_gasto": date.fromisoformat(factura.fecha),
+                            "model_img":factura.Model,
+                            "model_clasificador":modelo_clasificador
                         }
                 
                 registro_gasto = await registrar(db, movimiento_data)
@@ -333,8 +332,11 @@ async def registro(
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=registro_gasto.mensaje)
                 
             except Exception as e:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Error registro factura: {str(e)}")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Error registro factura 1: {str(e)}")
+    except HTTPException:
+        # Re-lanzar tal cual cualquier HTTPException ya generada más arriba
+        # (ej: la de "campos requeridos no detectados en la imagen"), para que
+        # NO sea envuelta/ocultada por el except Exception genérico de abajo.
+        raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Error registro factura: {str(e)}")
-
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Error registro factura 2: {str(e)}")

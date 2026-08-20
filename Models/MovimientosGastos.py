@@ -27,12 +27,24 @@ class MovimientosGastos(Base):
     CategoriaId = Column("CategoriaId", Integer, ForeignKey("CategoriasGastos.Id"), nullable=False, index=True)
     EmpresaId = Column("EmpresaId", Integer, ForeignKey("Empresas.Id"), nullable=False, index=True)
     NumeroFactura = Column("NumeroFactura", String(255), nullable=True)
+    ModeloExtraccionDatos = Column("ModeloExtraccionDatos", String(255), nullable=True)
+    ModeloClasificador = Column("ModeloClasificador", String(255), nullable=True)
 
     usuario = relationship("Usuarios", back_populates="movimientos_gastos")
     categoria = relationship("CategoriasGastos", back_populates="movimientos_gastos")
     empresa = relationship("Empresas", back_populates="movimientos_gastos")
     imagenes = relationship(
         "MovimientosGastosImagenes",
+        back_populates="movimiento_gasto",
+        cascade="all, delete-orphan",
+    )
+    etiquetas = relationship(
+        "MovimientosGastosEtiquetas",
+        back_populates="movimiento_gasto",
+        cascade="all, delete-orphan",
+    )
+    conceptos = relationship(
+        "MovimientosGastosConceptos",
         back_populates="movimiento_gasto",
         cascade="all, delete-orphan",
     )

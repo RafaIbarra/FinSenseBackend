@@ -96,6 +96,10 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 registro.CategoriaId = movimiento["id_categoria"]
             if movimiento.get("nro_factura") is not None:
                 registro.NumeroFactura = movimiento["nro_factura"]
+            if movimiento.get("model_img") is not None:
+                registro.ModeloExtraccionDatos = movimiento["model_img"]
+            if movimiento.get("model_clasificador") is not None:
+                registro.ModeloClasificador = movimiento["model_clasificador"]
             registro.EmpresaId = empresa.Id
 
             # Por ahora no hay lógica para imagenes cuando viene vacio
@@ -113,6 +117,8 @@ async def registrar(db: AsyncSession, movimiento: dict):
             CategoriaId=categoria_id,
             EmpresaId=empresa.Id,
             NumeroFactura=movimiento.get("nro_factura"),
+            ModeloExtraccionDatos= movimiento.get("model_img",'') ,
+            ModeloClasificador= movimiento.get("model_clasificador",'') 
         )
 
         db.add(nuevo_movimiento)

@@ -21,12 +21,6 @@ class Usuarios(Base):
         cascade="all, delete-orphan",
     )
 
-    categorias_gastos = relationship(
-        "CategoriasGastos",
-        back_populates="usuario",
-        cascade="all, delete-orphan",
-    )
-
     movimientos_gastos = relationship(
         "MovimientosGastos",
         back_populates="usuario",

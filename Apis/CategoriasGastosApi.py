@@ -18,8 +18,7 @@ async def listar(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    usuario_id = int(request.state.id_usuario)
-    categorias = await listar_categorias(db, usuario_id)
+    categorias = await listar_categorias(db)
 
     return {
         "status": "success",
@@ -40,8 +39,7 @@ async def detalle(
     categoria_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    usuario_id = int(request.state.id_usuario)
-    categoria = await obtener_categoria(db, categoria_id, usuario_id)
+    categoria = await obtener_categoria(db, categoria_id)
 
     if not categoria:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
@@ -50,7 +48,6 @@ async def detalle(
         "status": "success",
         "id": categoria.Id,
         "nombre": categoria.NombreCategoria,
-        "usuario_id": categoria.UsuarioId,
         "fecha_registro": categoria.FechaRegistro.isoformat() if categoria.FechaRegistro else None,
     }
 
@@ -62,10 +59,8 @@ async def registro_categoria(
     id: int = Form(0),
     db: AsyncSession = Depends(get_db),
 ):
-    usuario_id = int(request.state.id_usuario)
     categoria_data = {
         "id": id,
-        "user_id": usuario_id,
         "nombre": nombre,
     }
 
@@ -77,7 +72,6 @@ async def registro_categoria(
         "status": "success",
         "id": resultado.Id,
         "nombre": resultado.NombreCategoria,
-        "usuario_id": resultado.UsuarioId,
         "fecha_registro": resultado.FechaRegistro.isoformat() if resultado.FechaRegistro else None,
     }
 
@@ -88,8 +82,7 @@ async def eliminar(
     id: int = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    usuario_id = int(request.state.id_usuario)
-    resultado = await eliminar_categoria(db, id, usuario_id)
+    resultado = await eliminar_categoria(db, id)
 
     if isinstance(resultado, dict) and resultado.get("error"):
         raise HTTPException(status_code=400, detail=resultado["error"])
