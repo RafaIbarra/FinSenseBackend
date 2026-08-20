@@ -14,6 +14,20 @@ async def listar_etiquetas(db: AsyncSession):
     return result.scalars().all()
 
 
+async def registrar_etiquetas_masivo(db: AsyncSession, nombres: list[str]):
+    if not nombres:
+        return RespuestaFuncion(data_registro=[])
+
+    nuevas_etiquetas = [
+        EtiquetasGastos(NombreEtiqueta=nombre)
+        for nombre in nombres
+    ]
+    db.add_all(nuevas_etiquetas)
+    await db.flush()
+
+    return RespuestaFuncion(data_registro=nuevas_etiquetas)
+
+
 async def registrar_etiqueta(db: AsyncSession, etiqueta: dict):
     try:
         if not etiqueta:

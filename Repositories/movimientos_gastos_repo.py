@@ -1,14 +1,83 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from Models.CategoriasGastos import CategoriasGastos
 from Models.Empresas import Empresas
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
+from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
+from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
 from Integrations.r2_storage import *
 from Utils.img_works import registrar_imagenes
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
+
+
+async def movimientos_usuario(db: AsyncSession, id_usuario: int):
+    result = await db.execute(
+        select(MovimientosGastos)
+        .where(MovimientosGastos.UsuarioId == id_usuario)
+        .options(
+            selectinload(MovimientosGastos.empresa),
+            selectinload(MovimientosGastos.categoria),
+            selectinload(MovimientosGastos.etiquetas).selectinload(
+                MovimientosGastosEtiquetas.etiqueta
+            ),
+            selectinload(MovimientosGastos.conceptos).selectinload(
+                MovimientosGastosConceptos.concepto
+            ),
+            selectinload(MovimientosGastos.imagenes),
+        )
+        .order_by(MovimientosGastos.FechaRegistro.desc())
+    )
+    movimientos = result.scalars().all()
+
+    def formatear_fecha(fecha):
+        return fecha.strftime("%d/%m/%y %H:%M_%S") if fecha else None
+
+    return [
+        {
+            "id": movimiento.Id,
+            "fecha_registro": formatear_fecha(movimiento.FechaRegistro),
+            "fecha_gasto": movimiento.FechaGasto.strftime("%d/%m/%y") if movimiento.FechaGasto else None,
+            "total_gasto": movimiento.TotalGasto,
+            "iva_diez": movimiento.IvaDiez,
+            "iva_cinco": movimiento.IvaCinco,
+            "tipo_registro": movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro),
+            "categoria_id": movimiento.CategoriaId,
+            "empresa_id": movimiento.EmpresaId,
+            "empresa": {
+                "id": movimiento.empresa.Id,
+                "nombre": movimiento.empresa.NombreEmpresa,
+                "ruc": movimiento.empresa.Ruc,
+                "url_logo": movimiento.empresa.UrlLogo,
+            } if movimiento.empresa else None,
+            "categoria": {
+                "id": movimiento.categoria.Id,
+                "nombre": movimiento.categoria.NombreCategoria,
+            } if movimiento.categoria else None,
+            "numero_factura": movimiento.NumeroFactura,
+            "modelo_extraccion_datos": movimiento.ModeloExtraccionDatos,
+            "modelo_clasificador": movimiento.ModeloClasificador,
+            "etiquetas": [
+                {
+                    "idetiqueta": enlace.EtiquetaId,
+                    "nombre": enlace.etiqueta.NombreEtiqueta,
+                }
+                for enlace in movimiento.etiquetas
+            ],
+            "conceptos": [
+                {
+                    "idconcepto": enlace.ConceptoId,
+                    "nombre": enlace.concepto.NombreConcepto,
+                }
+                for enlace in movimiento.conceptos
+            ],
+            "imagenes": [imagen.UrlImagen for imagen in movimiento.imagenes],
+        }
+        for movimiento in movimientos
+    ]
 
 async def obtener_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
     result = await db.execute(
@@ -51,7 +120,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
         categoria_result = await db.execute(
             select(CategoriasGastos).where(
                 CategoriasGastos.Id == categoria_id,
-                CategoriasGastos.UsuarioId == usuario_id,
+                
             )
         )
         categoria = categoria_result.scalars().first()
@@ -59,6 +128,8 @@ async def registrar(db: AsyncSession, movimiento: dict):
             return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada para el usuario")
 
         nro_factura = movimiento.get("nro_factura")
+
+    
 
         # Un mismo número de factura no puede repetirse para el mismo usuario y empresa,
         # excepto cuando la empresa tiene RUC "0-0" (empresa genérica/sin RUC).
@@ -121,17 +192,60 @@ async def registrar(db: AsyncSession, movimiento: dict):
             ModeloClasificador= movimiento.get("model_clasificador",'') 
         )
 
-        db.add(nuevo_movimiento)
-        await db.commit()
-        await db.refresh(nuevo_movimiento)
+        # Desde acá en adelante todo corre en UNA sola transacción: usamos flush()
+        # (que asigna el Id y sincroniza con la BD sin cerrar la transacción) en vez
+        # de commit(). El único commit() queda al final; si algo falla antes, el
+        # except de más abajo hace rollback() y deshace TODO lo de este bloque
+        # (nuevo_movimiento, imagenes, conceptos y etiquetas), replicando el
+        # comportamiento de transaction.atomic() de Django.
+        # Bloque atómico: movimiento + conceptos + etiquetas se guardan juntos o nada.
+        # Se usa flush() (no commit()) para conceptos/etiquetas: así, si algo falla en
+        # cualquiera de los tres, el rollback() deshace TODO el bloque, incluyendo el
+        # nuevo_movimiento (que todavía no fue comiteado).
+        try:
+            db.add(nuevo_movimiento)
+            await db.flush()  # asigna nuevo_movimiento.Id sin comitear
+
+            if movimiento.get("conceptos", []):
+                db.add_all([
+                    MovimientosGastosConceptos(
+                        MovimientoGastoId=nuevo_movimiento.Id,
+                        ConceptoId=concepto_id,
+                    )
+                    for concepto_id in movimiento["conceptos"]
+                ])
+            if movimiento.get("etiquetas", []):
+                db.add_all([
+                    MovimientosGastosEtiquetas(
+                        MovimientoGastoId=nuevo_movimiento.Id,
+                        EtiquetaId=etiqueta_id,
+                    )
+                    for etiqueta_id in movimiento["etiquetas"]
+                ])
+
+            await db.commit()
+            await db.refresh(nuevo_movimiento)
+        except Exception as exc:
+            await db.rollback()
+            return RespuestaFuncion(
+                success_registro=False,
+                mensaje=f"No se pudo registrar el movimiento: {limpiar_mensaje_error_bd(str(exc))}",
+            )
+
+        # Las imagenes se procesan y comitean en su propia transaccion, DESPUÉS de que
+        # movimiento+conceptos+etiquetas ya quedaron confirmados. Un error acá NO debe
+        # afectar a lo anterior, y de hecho cada imagen ya maneja su propio try/except
+        # individual (si falla la subida a R2, se guarda con ErrorUploadImg y se sigue
+        # con la siguiente, sin abortar nada).
         if imagenes:
             imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
             for index, img in enumerate(imagenes[:2], start=1):
                 try:
-                    resultado = await registrar_imagenes(img, {"index": index})
-                    url_imagen = resultado.get("url")
-                    mensaje_imagen = resultado.get("mensaje", "")
-
+                    # resultado = await registrar_imagenes(img, {"index": index})
+                    # url_imagen = resultado.get("url")
+                    # mensaje_imagen = resultado.get("mensaje", "")
+                    url_imagen=""
+                    mensaje_imagen=""
                     imagen = MovimientosGastosImagenes(
                         UrlImagen=url_imagen or "",
                         ReferenciaCola="",

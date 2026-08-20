@@ -6,7 +6,7 @@ OCR_DATA={
         "info":"",
         "ruc_empresa": "80077406-0",
         "fecha": "2025-08-10",
-        "numero_factura": "252-002-0022401",
+        "numero_factura": "252-002-0022401xxB",
         "total": 58600.0,
         "iva_diez": 3300.0,
         "iva_cinco": 1062.0,
@@ -26,9 +26,9 @@ OCR_DATA={
     },
     "id_usuario": 1,
     "id_form": 0,
-    "clasificacion": {
-        "categoria": "Alimentación",
-        "confianza": "Alta",
-        "error": "null"
+    "data_clasificacion": {
+        "clasificacion": "Supermercados",
+        "modelo_clasificador": "openai/gpt-oss-20b",
+        "etiquetas": ['Alimentacion', 'Bebidas', 'Verduras', 'Yerba', 'Té']
     }
 }

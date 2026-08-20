@@ -1,82 +1,184 @@
 from groq import AsyncGroq
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 from Config.settings import settings
 from Repositories.errores_modelos import registro_error
 import json
+
 GROQ_API_KEY = settings.GROQ_API_KEY
 client = AsyncGroq(api_key=GROQ_API_KEY)
-MODELS_FALLBACK =["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
+MODELS_FALLBACK = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
 
 MODEL_KWARGS = {
-    "llama-3.1-8b-instant": {"max_tokens": 100},
+    "llama-3.1-8b-instant": {"max_tokens": 150},
     "openai/gpt-oss-20b": {"max_tokens": 600, "reasoning_effort": "low"},
     "qwen/qwen3.6-27b": {"max_tokens": 600, "reasoning_effort": "low"},
 }
 DEFAULT_MODEL_KWARGS = {"max_tokens": 300}
 
+CLASIFICACION_DEFAULT = "Desconocido"
+ETIQUETAS_DEFAULT = ["Sin Etiquetas"]
+MAX_ETIQUETAS = 5
+
+CLASIFICACION_SYNONYMS = {
+    # Variantes → Forma canónica
+    "supermercados": "Supermercados",
+    "super mercado": "Supermercados",
+    "super mercados": "Supermercados",
+    "supermercado": "Supermercados",
+    "farmacias": "Farmacias",
+    "farmaceutica": "Farmacias",
+    "farmaceutico": "Farmacias",
+    "restaurantes": "Restaurantes",
+    "gastronomico": "Gastronomias",
+    "gastronomicos": "Gastronomias",
+    "ferreterias": "Ferreterias",
+    "tecnologias": "Tecnologia",
+    "indumentarias": "Indumentarias",
+    "ropa": "Indumentaria",
+    "educacion": "Educacion",
+    "academia": "Educacion",
+    "mascotas": "Mascotas",
+    "mascoteria": "Mascotas",
+    "petshop": "Mascotas",
+    "construccion": "Construccion",
+    "jugueteria": "Jugueteria",
+    "juguetes": "Jugueteria",
+}
+
+ETIQUETA_SYNONYMS = {
+    # Variantes → Forma canónica
+    "alimentos": "Alimentacion",
+    "comida": "Alimentacion",
+    "comestibles": "Alimentacion",
+    }
+
+
+
 class ClasificacionGasto(BaseModel):
-    categoria: str
-    confianza: str  # Alta, Media, Baja
-    modelo_clasificador:str
+    clasificacion: str
+    etiquetas: List[str]
+    modelo_clasificador: str
 
-
-# Categorías predefinidas. El modelo debe elegir UNA de estas.
-CATEGORIAS = [
-    "Alimentacion",
-    "Transporte",
-    "Salud",
-    "Entretenimiento",
-    "Vestimenta",
-    "Hogar",
-    "Educación",
-    "Servicios",
-    "Tecnología",
-    "Nafta/Combustible",
-    "Mascotas",
-    "Regalos",
-    "Viajes",
-    "Otros"
-]
 
 SYSTEM_PROMPT_CLASIFICADOR = f"""
-Eres un clasificador de gastos personales. Tu trabajo es analizar una lista de conceptos de una factura y asignarle UNA sola categoría al gasto total.
+Eres un clasificador de gastos personales para facturas paraguayas/latinoamericanas.
 
-CATEGORÍAS DISPONIBLES (elige EXACTAMENTE una de esta lista):
-{', '.join(CATEGORIAS)}
+Vas a recibir:
+- "empresa": el nombre de la empresa/comercio que emitió la factura.
+- "info_empresa": información adicional sobre la empresa (rubro, dirección, descripción). Puede venir vacío.
+- "conceptos": una lista de ítems/productos/servicios detallados en la factura. Puede venir vacía.
 
-REGLAS:
-- Analiza los conceptos como un conjunto, no individualmente.
-- Si la mayoría son comestibles → Alimentacion.
-- Si hay nafta, lubricantes, peajes → Nafta/Combustible o Transporte.
-- Si son medicamentos, consultas, análisis → Salud.
-- Si son películas, juegos, eventos → Entretenimiento.
-- Si son ropa, zapatos, accesorios personales → Vestimenta.
-- Si son limpieza, muebles, decoración → Hogar.
-- Si son cursos, libros, útiles → Educación.
-- Si son luz, agua, internet, teléfono → Servicios.
-- Si son celulares, computadoras, software → Tecnología.
-- Si no encaja en ninguna → Otros.
+Tu trabajo es devolver DOS cosas:
 
-Responde ÚNICAMENTE con un JSON válido en este formato exacto:
-{{"categoria": "NombreCategoria", "confianza": "Alta"}}
+1) "clasificacion": UNA sola categoría que describa a qué se dedica la EMPRESA (no los conceptos).
+   - Basate primero en el nombre de la empresa. Si reconocés la empresa (por conocimiento general o porque
+     el nombre es muy indicativo del rubro), asignale la categoría correspondiente.
+   - Si el nombre no te da seguridad, usa "info_empresa" (si no está vacío) como apoyo para decidir.
+   - Si aun así no podés determinar el rubro con razonable confianza, devolvé "Desconocido". No inventes.
+   - Ejemplos de referencia (son solo ejemplos, hay muchísimos más casos posibles, generalizá el criterio):
+     * Supermercados: Biggie, Stock, Super Seis, Salemma
+     * Servicios Básicos: ANDE (Administración Nacional de Electricidad), ESSAP, COPACO
+     * Combustible/Estaciones de servicio: Petrobras, Puma, Barcos y Rodados
+     * Farmacia: Farmacenter, Punto Farma
+     * Restaurante/Gastronomía, Tecnología, Ferretería, Indumentaria, Salud, Educación, etc. son
+       categorías válidas si el nombre o info de la empresa lo sugiere claramente.
 
-El campo "confianza" indica qué tan seguro estás:
-- "Alta": los conceptos dejan muy clara la categoría.
-- "Media": hay conceptos de más de una categoría, pero predomina una.
-- "Baja": los conceptos son ambiguos o no dan pistas claras.
+2) "etiquetas": entre 1 y {MAX_ETIQUETAS} etiquetas que agrupen los CONCEPTOS de la factura (los ítems comprados).
+   - Analizá los conceptos y agrupalos por tipo, asignando etiquetas cortas y generales (no una por ítem).
+   - Si "conceptos" viene vacío, devolvé exactamente {json.dumps(ETIQUETAS_DEFAULT, ensure_ascii=False)}.
+   - Ejemplos de referencia (son solo ejemplos, podés usar otras etiquetas si corresponde):
+     * Alimentacion: carnes, lácteos, huevos, verduras, almacén
+     * Bebidas: gaseosas, cervezas, vinos, agua
+     * Limpieza: detergentes, lavandina, artículos de limpieza del hogar
+     * Higiene Personal: shampoo, jabón, pasta dental
+     * Utencillos: bandejas, cuchillos, cucharas, ollas
+     * Electrodomesticos, Vestimenta, Papeleria, Mascotas, Ferreteria, Farmacia, etc.
 
-No agregues explicaciones, no uses markdown, solo el JSON.
+Responde ÚNICAMENTE con un JSON válido en este formato exacto, sin explicaciones ni markdown:
+{{"clasificacion": "NombreCategoria", "etiquetas": ["Etiqueta1", "Etiqueta2"]}}
 """
-async def disponibilidad():
-    
-    models = await client.models.list()
 
+def _canonicalizar(texto: str, mapeo: dict) -> str:
+    """
+    Busca coincidencia case-insensitive en el mapeo.
+    Si encuentra, devuelve la forma canónica.
+    Si no, devuelve el texto original con la primera letra de cada palabra en mayúscula.
+    """
+    clave = texto.strip().lower()
+    
+    if clave in mapeo:
+        
+        return mapeo[clave]
+    # Si no está en el mapeo, al menos normalizamos el casing a Title Case
+    return texto.strip().title()
+
+async def disponibilidad():
+    models = await client.models.list()
     for m in models.data:
         print(m.id)
     return models
 
-async def _clasificar_con_modelo(modelo: str, user_prompt: str,time_out:int) -> ClasificacionGasto:
+
+def _construir_user_prompt(data_clasificacion: Dict) -> str:
+    empresa = (data_clasificacion.get("empresa") or "").strip()
+    info_empresa = (data_clasificacion.get("info_empresa") or "").strip()
+    conceptos = data_clasificacion.get("conceptos") or []
+
+    partes = [f"Empresa: {empresa if empresa else '(sin nombre de empresa)'}"]
+
+    if info_empresa:
+        partes.append(f"Info de la empresa: {info_empresa}")
+    else:
+        partes.append("Info de la empresa: (no disponible)")
+
+    if conceptos:
+        texto_conceptos = "\n".join(f"- {c}" for c in conceptos)
+        partes.append(f"Conceptos de la factura:\n{texto_conceptos}")
+    else:
+        partes.append("Conceptos de la factura: (no disponibles)")
+
+    return "\n\n".join(partes)
+
+
+def _normalizar_respuesta(data: dict, modelo: str) -> ClasificacionGasto:
+    clasificacion_raw = (data.get("clasificacion") or "").strip()
+    if not clasificacion_raw:
+        clasificacion = CLASIFICACION_DEFAULT
+    else:
+        
+        clasificacion = _canonicalizar(clasificacion_raw, CLASIFICACION_SYNONYMS)
+
+    etiquetas_raw = data.get("etiquetas")
+    if not isinstance(etiquetas_raw, list):
+        etiquetas_raw = []
+
+    # Normalizar cada etiqueta
+    etiquetas_normalizadas = []
+    vistas = set()
+    for e in etiquetas_raw:
+        etiqueta_limpia = str(e).strip()
+        if not etiqueta_limpia:
+            continue
+        canon = _canonicalizar(etiqueta_limpia, ETIQUETA_SYNONYMS)
+        # Evitar duplicados exactos tras la normalización
+        if canon.lower() not in vistas:
+            vistas.add(canon.lower())
+            etiquetas_normalizadas.append(canon)
+
+    if not etiquetas_normalizadas:
+        etiquetas = list(ETIQUETAS_DEFAULT)
+    else:
+        etiquetas = etiquetas_normalizadas[:MAX_ETIQUETAS]
+
+    return ClasificacionGasto(
+        clasificacion=clasificacion,
+        etiquetas=etiquetas,
+        modelo_clasificador=modelo,
+    )
+
+
+async def _clasificar_con_modelo(modelo: str, user_prompt: str, time_out: int) -> ClasificacionGasto:
     """
     Intenta clasificar el gasto usando un modelo específico.
     Lanza excepción si falla (JSON inválido o error de API), para que el llamador
@@ -99,51 +201,49 @@ async def _clasificar_con_modelo(modelo: str, user_prompt: str,time_out:int) -> 
     raw = response.choices[0].message.content.strip()
     data = json.loads(raw)  # puede lanzar json.JSONDecodeError
 
-    # Validar que la categoría esté en la lista permitida
-    categoria = data.get("categoria", "Otros")
-    if categoria not in CATEGORIAS:
-        categoria = "Otros"
-
-    return ClasificacionGasto(
-        categoria=categoria,
-        confianza=data.get("confianza", "Baja"),
-        modelo_clasificador=modelo
-
-    )
+    return _normalizar_respuesta(data, modelo)
 
 
-async def clasificar_gasto(conceptos: List[str],time_out:int) -> ClasificacionGasto:
+async def clasificar_gasto(data_clasificacion: Dict, time_out: int) -> ClasificacionGasto:
     """
-    Clasifica un gasto basándose en los conceptos extraídos de una factura.
+    Clasifica un gasto basándose en la empresa, info de la empresa y los conceptos
+    extraídos de una factura.
 
     Prueba los modelos definidos en MODELS_FALLBACK en orden, de a uno: si el modelo
     actual falla (error de API, rate limit, JSON inválido), se registra el error y se
     intenta con el siguiente modelo de la lista antes de darse por vencido.
 
     Args:
-        conceptos: Lista de strings con los conceptos/descripciones de los artículos.
-                   Ej: ["Leche Entera 1L", "Pan Integral", "Café Molido"]
+        data_clasificacion: dict con las claves:
+            - "empresa": str, nombre de la empresa.
+            - "info_empresa": str, info adicional de la empresa (puede venir vacío).
+            - "conceptos": List[str], ítems detallados en la factura (puede venir vacío).
+        time_out: timeout en segundos para la llamada a la API.
 
     Returns:
-        ClasificacionGasto: Categoría asignada y nivel de confianza.
+        ClasificacionGasto: clasificación de la empresa y etiquetas de los conceptos.
 
     Raises:
         ValueError: Si NINGÚN modelo de la lista devolvió JSON válido.
         RuntimeError: Si NINGÚN modelo de la lista pudo responder (fallas de API).
     """
-    if not conceptos:
-        return ClasificacionGasto(categoria="Otros", confianza="Baja",modelo_clasificador="")
-    
-    # Unimos los conceptos en un texto legible
-    texto_conceptos = "\n".join(f"- {c}" for c in conceptos)
+    empresa = (data_clasificacion.get("empresa") or "").strip()
+    conceptos = data_clasificacion.get("conceptos") or []
 
-    user_prompt = f"Conceptos de la factura:\n{texto_conceptos}"
+    if not empresa and not conceptos:
+        return ClasificacionGasto(
+            clasificacion=CLASIFICACION_DEFAULT,
+            etiquetas=list(ETIQUETAS_DEFAULT),
+            modelo_clasificador="",
+        )
+
+    user_prompt = _construir_user_prompt(data_clasificacion)
 
     ultimo_error: Optional[Exception] = None
 
     for modelo in MODELS_FALLBACK:
         try:
-            return await _clasificar_con_modelo(modelo, user_prompt,time_out)
+            return await _clasificar_con_modelo(modelo, user_prompt, time_out)
 
         except json.JSONDecodeError as e:
             ultimo_error = e

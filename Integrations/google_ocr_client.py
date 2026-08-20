@@ -49,6 +49,7 @@ Eres un extractor experto de datos de facturas. Analiza la imagen y devuelve ÚN
 ESTRUCTURA DE RESPUESTA:
 {
   "empresa": "nombre del vendedor/empresa",
+  "info": "rubro/actividad de la empresa tal cual aparece en la factura, o vacio si no aparece",
   "ruc_empresa": "4545454-4",
   "fecha": "YYYY-MM-DD",
   "numero_factura": "001-001-0000001",
@@ -67,7 +68,24 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
    - Busca el nombre comercial más prominente, usualmente en negrita o tamaño mayor.
    - Si hay varios nombres, prioriza el del vendedor/emisor (no el del cliente).
 
-2. RUC_EMPRESA:
+2. INFO:
+   - Este campo busca capturar una frase o texto CORTO que indique a qué se dedica la empresa
+     (su rubro/actividad), SOLO SI ese texto aparece explícitamente impreso en la factura.
+   - Generalmente se ubica JUSTO DEBAJO del nombre de la empresa o JUSTO DEBAJO/AL LADO del logo,
+     en letra más chica que el nombre comercial. Ejemplos de lo que puede aparecer ahí:
+     "Supermercado", "Distribuidora de alimentos", "Farmacia y Perfumería", "Ferretería Industrial",
+     "Venta de repuestos automotores", "Administración Nacional de Electricidad", etc.
+   - REGLA CRÍTICA - NO INVENTAR: la gran mayoría de las facturas NO incluyen este dato. Extraé este
+     campo ÚNICAMENTE si el texto está literalmente escrito e impreso en la imagen. NO deduzcas ni
+     infieras el rubro a partir del nombre de la empresa, del tipo de productos vendidos, ni de
+     ningún otro razonamiento. Este campo es una transcripción, no una inferencia.
+   - No confundas esto con: la dirección, el teléfono, el email, el sitio web, el eslogan/lema
+     publicitario sin relación al rubro, ni con el nombre de la empresa en sí.
+   - Si tenés cualquier duda sobre si el texto realmente describe el rubro de la empresa, o si
+     simplemente no aparece nada de esto en la imagen, devolvé "" (string vacío).
+   - Nunca uses null para este campo: si no se encuentra, el valor debe ser exactamente "".
+
+3. RUC_EMPRESA:
    - Busca etiquetas como: RUC, Nº RUC, Nro. RUC, Numero RUC, R.U.C., N° RUC, RUC Nº.
    - El formato suele ser numérico, a veces con guiones (ej: 1234567-8).
    - Extrae SOLO el número, sin la etiqueta.
@@ -80,12 +98,12 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
      Prioriza SIEMPRE el RUC ubicado junto al logo/nombre comercial del emisor como "ruc_empresa".
      El campo "RUC/CI" del cliente NO debe usarse para ruc_empresa.
 
-3. FECHA:
+4. FECHA:
    - Busca etiquetas como: Fecha, Fecha de Inicio, Fecha Factura, Fecha Emisión, Fecha de Emisión, Fec., Emisión.
    - Formato de salida SIEMPRE: YYYY-MM-DD.
    - Si la fecha está en formato DD/MM/YYYY o similar, conviértela.
 
-4. NUMERO_FACTURA:
+5. NUMERO_FACTURA:
    - Busca etiquetas como: Nro Factura, Nº Factura, Nro. Factura, Factura Nº, No. Factura, N° de Factura,
      Factura crédito Nro., Documento Nro.
    - Formato típico (facturas comerciales estándar): XXX-XXX-XXXXXXX (tres grupos separados por guiones).
@@ -97,7 +115,7 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
    - Si hay varias etiquetas candidatas ("Nro. Timbrado", "Nro. Edición", "N.I.R.", etc.), NO las uses
      para numero_factura; solo usa la que esté explícitamente asociada a "Factura".
 
-5. TOTAL:
+6. TOTAL:
    - Busca etiquetas como: Total, Total a Pagar, Total General, Importe Total, Total Gs., Total $, Total USD.
    - Extrae el valor numérico SIN símbolo de moneda.
    - Prioriza el total FINAL (el último/más grande), no subtotales.
@@ -112,23 +130,23 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
      El campo "total" siempre debe reflejar el monto FINAL que el cliente paga, no un subtotal previo
      a comisiones o recargos.
 
-6. IVA_DIEZ (IVA 10%):
+7. IVA_DIEZ (IVA 10%):
    - Busca etiquetas como: IVA 10%, IVA 10, I.V.A. 10%, Impuesto 10%, IVA Diez, IVA 10% Liquidación.
    - Extrae el monto numérico correspondiente al IVA al 10%.
    - Si no aparece, devuelve 0.0.
 
-7. IVA_CINCO (IVA 5%):
+8. IVA_CINCO (IVA 5%):
    - Busca etiquetas como: IVA 5%, IVA 5, I.V.A. 5%, Impuesto 5%, IVA Cinco, IVA 5% Liquidación.
    - Extrae el monto numérico correspondiente al IVA al 5%.
    - Si no aparece, devuelve 0.0.
 
-7.b IVA GENÉRICO (sin desglose de tasa):
+8.b IVA GENÉRICO (sin desglose de tasa):
    - Algunas facturas (comúnmente de servicios como ANDE) muestran una única línea genérica "I.V.A."
      SIN indicar si corresponde a 10% o 5%.
    - En ese caso, asume que corresponde a IVA 10% y coloca el monto en "iva_diez"; "iva_cinco" queda en 0.0.
    - Si la factura no menciona ningún IVA, "iva_diez" e "iva_cinco" deben ser 0.0 (nunca null).
 
-8. DETALLE (lista de conceptos de artículos):
+9. DETALLE (lista de conceptos de artículos):
    - Busca la sección de artículos/conceptos/descripción de la factura, generalmente en formato de tabla o grilla.
    - Etiquetas comunes de la sección: Artículos, Conceptos, Descripción, Detalle, Productos, Items, Mercaderías, Servicios.
    - Extrae SOLO el nombre/concepto/descripción de cada artículo. NO incluyas cantidades, precios unitarios, totales por línea, códigos de barrar ni números de ítem.
@@ -144,7 +162,7 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
    - En facturas de servicios (ej: ANDE), los conceptos de facturación (ej: "Alumbrado Publico",
      "Dif Consumo Minimo", "Energia Activa") SÍ cuentan como items válidos para "detalle".
 
-9. FIABILIDAD (campo obligatorio):
+10. FIABILIDAD (campo obligatorio):
    Evalúa qué tan seguro estás de la extracción basándote en:
    - Nitidez de la imagen
    - Claridad del texto
@@ -158,7 +176,10 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
 
 REGLAS GENERALES:
 - Si no encuentras un campo, usa null (no omitas la clave), EXCEPTO "iva_diez" e "iva_cinco" que
-  usan 0.0 en vez de null cuando no aplican o no aparecen (ver regla específica más abajo).
+  usan 0.0 en vez de null cuando no aplican o no aparecen (ver regla específica más abajo), y EXCEPTO
+  "info" que usa "" (string vacío) en vez de null cuando no aparece en la imagen (ver regla 2).
+- El campo "info" NUNCA debe ser una inferencia o suposición: o es una transcripción de un texto que
+  realmente está impreso en la factura, o es "".
 - Los valores numéricos deben ser números (float o int), NUNCA strings con símbolos.
 - La fecha SIEMPRE en formato ISO: YYYY-MM-DD.
 - El campo "detalle" SIEMPRE debe ser un array de strings, nunca null.
@@ -328,7 +349,7 @@ async def extraer_factura(
 
         except Exception as e:
             ultimo_error = e
-            print(f'excepcion genérica con el modelo {modelo}: {e}')
+            
             data_error = {
                             "proceso": 'Lector Imagenes',
                             "modelo": modelo,

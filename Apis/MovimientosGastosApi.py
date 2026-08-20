@@ -2,6 +2,7 @@ from sqlalchemy import select
 from Models.Empresas import Empresas
 from Models.CategoriasGastos import CategoriasGastos
 from Models.ConceptosGastos import ConceptosGastos
+from Models.EtiquetasGastos import EtiquetasGastos
 
 from datetime import date,datetime
 from typing import List, Optional
@@ -10,7 +11,7 @@ from fastapi import Depends, Form, HTTPException, Request, Response,status,File,
 from sqlalchemy.ext.asyncio import AsyncSession
 from Common.routers_factory import generar_router
 from Config.settings import get_db,settings
-from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
+from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar,movimientos_usuario
 from Integrations.google_ocr_client import extraer_factura,FacturaExtraida
 from Integrations.groq_clasificador import clasificar_gasto,ClasificacionGasto
 from DataTest.data import OCR_DATA
@@ -18,10 +19,24 @@ from DataTest.data import OCR_DATA
 from Repositories.empresas_repo import registrar as registrar_empresa
 from Repositories.categorias_gastos_repo import registrar as registrar_categoria
 from Repositories.conceptos_gastos_repo import registrar_conceptos_masivo
+from Repositories.etiquetas_gastos_repo import registrar_etiquetas_masivo
 from Repositories.imagenes_pendientes_repo import registrar_imagenes_pendientes
 
 from Integrations.r2_storage import *
 router_movimientos = generar_router('/gastos')
+
+@router_movimientos.get("/movimientos-usuario")
+async def listar_movimiento_usuario(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    usuario_id = int(request.state.id_usuario)
+    datos = await movimientos_usuario(db,usuario_id)
+    
+    return {
+        
+        "datos":datos
+    }
 
 @router_movimientos.post("/registro-manual")
 async def registro_manual(
@@ -156,17 +171,19 @@ async def registro(
         
 
         factura: Optional[FacturaExtraida] = None
+        result_model_clasificacion: Optional[ClasificacionGasto] = None
         
-        # factura=await extraer_factura(
-        #                 imagen_1=bytes_1,
-        #                 imagen_2=bytes_2,
-        #                 mime_type_1=mime_1,
-        #                 mime_type_2=mime_2,
-        #                 time_out=180
-        #                 )
-        factura = FacturaExtraida(**OCR_DATA['data'])
+        factura=await extraer_factura(
+                        imagen_1=bytes_1,
+                        imagen_2=bytes_2,
+                        mime_type_1=mime_1,
+                        mime_type_2=mime_2,
+                        time_out=180
+                        )
+        # factura = FacturaExtraida(**OCR_DATA['data'])
+        # result_model_clasificacion=ClasificacionGasto(**OCR_DATA['data_clasificacion'])
         
-        print(f'la factura es : {factura}')
+        
         nombre_categoria=""
         if not factura.success_registro:
 
@@ -186,10 +203,7 @@ async def registro(
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=pendientes.mensaje)
 
             except Exception as e:
-                raise HTTPException(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                detail=f"Error registro pendientes: {str(e)}"
-                            )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Error registro pendientes: {str(e)}")
         else:
 
         # # # ── Clasificar gasto con Groq ─────────────────────────
@@ -230,14 +244,7 @@ async def registro(
                         ids_conceptos = [concepto.Id for concepto in conceptos_existentes]
                     
 
-                    clasificacion: Optional[ClasificacionGasto] = None
-                    error_clasificacion: Optional[str] = None
-                    modelo_clasificador=""
                     
-                    clasificacion = await clasificar_gasto(factura.detalle,time_out=180)
-                    
-                    nombre_categoria=clasificacion.categoria
-                    modelo_clasificador=clasificacion.modelo_clasificador
                 except ValueError as e:
                     # print(f'ValueError {str(e)}')
                     error_clasificacion = f"Respuesta inválida del clasificador: {str(e)}"
@@ -247,17 +254,54 @@ async def registro(
                     nombre_categoria="S/N"
             else:
                 nombre_categoria="Varios"
-            print(f"los conceptos son {ids_conceptos}")        
-            print(type(ids_conceptos))
+
+            data_calisficacion={
+                "empresa":factura.empresa,
+                "info_empresa":factura.info,
+                "conceptos":factura.detalle
+            }    
+           
+            error_clasificacion: Optional[str] = None
+            modelo_clasificador=""
             
-
+            result_model_clasificacion = await clasificar_gasto(data_calisficacion,time_out=180)
             
+            nombre_categoria=result_model_clasificacion.clasificacion
+            modelo_clasificador=result_model_clasificacion.modelo_clasificador
+            ids_etiquetas=[]
 
-        # if not error_comunicacion_modelo:
+            etiquetas=result_model_clasificacion.etiquetas
+            etiquetas_factura = {
+                etiqueta.strip()
+                for etiqueta in etiquetas
+                if etiqueta and etiqueta.strip()
+            }
+            if etiquetas_factura:
+                etiquetas_existentes = await db.execute(
+                    select(EtiquetasGastos).where(
+                        EtiquetasGastos.NombreEtiqueta.in_(etiquetas_factura)
+                    )
+                )
+                etiquetas_existentes = list(etiquetas_existentes.scalars().all())
+                nombres_etiquetas_existentes = {
+                    etiqueta.NombreEtiqueta
+                    for etiqueta in etiquetas_existentes
+                }
+                nombres_etiquetas_faltantes = etiquetas_factura - nombres_etiquetas_existentes
 
-            # factura = FacturaExtraida(**OCR_DATA['data'])
-            # clasificacion=ClasificacionGasto(**OCR_DATA['clasificacion'])
-            #nombre_categoria=clasificacion.categoria
+                if nombres_etiquetas_faltantes:
+                    registros_etiquetas = await registrar_etiquetas_masivo(
+                        db,
+                        list(nombres_etiquetas_faltantes),
+                    )
+                    if not registros_etiquetas.success_registro:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=registros_etiquetas.mensaje,
+                        )
+                    etiquetas_existentes.extend(registros_etiquetas.data_registro)
+
+                ids_etiquetas = [etiqueta.Id for etiqueta in etiquetas_existentes]
 
             ruc=factura.ruc_empresa
             nombre_empresa=factura.empresa
@@ -320,6 +364,8 @@ async def registro(
                             "imagenes": imagenes,
                             "tipo_registro":"Automatico" ,
                             "fecha_gasto": date.fromisoformat(factura.fecha),
+                            "conceptos":ids_conceptos,
+                            "etiquetas":ids_etiquetas,
                             "model_img":factura.Model,
                             "model_clasificador":modelo_clasificador
                         }
