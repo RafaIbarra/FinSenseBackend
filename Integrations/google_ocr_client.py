@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from Config.settings import settings
 from Repositories.errores_modelos import registro_error
+from Schemas.integrations_schemas import FacturaExtraida
+
 GEMINI_API_KEY = settings.GEMINI_API_KEY
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -14,22 +16,7 @@ GEMINI_MODELS=[
             "gemini-3.1-flash-lite"
         ]
 
-# ── Schemas ───────────────────────────────────────────────
-class FacturaExtraida(BaseModel):
-    empresa: Optional[str] = None
-    info: Optional[str] = None
-    ruc_empresa: Optional[str] = None
-    fecha: Optional[str] = None
-    numero_factura: Optional[str] = None
-    total: Optional[float] = None
-    iva_diez: Optional[float] = None
-    iva_cinco: Optional[float] = None
-    fiabilidad: str = "Malo"  # Excelente, Bueno, Malo
-    detalle: List[str] = []   # Conceptos/descripciones de los artículos
-    Model: Optional[str] = None
-    success_registro: Optional[bool] = True
-    mensaje_error:str=""
-    data_correct: Optional[bool] = True
+
 
 
 class CamposNoDetectadosError(Exception):
@@ -49,7 +36,7 @@ Eres un extractor experto de datos de facturas. Analiza la imagen y devuelve ÚN
 ESTRUCTURA DE RESPUESTA:
 {
   "empresa": "nombre del vendedor/empresa",
-  "info": "rubro/actividad de la empresa tal cual aparece en la factura, o vacio si no aparece",
+  "rubro": "rubro/actividad de la empresa tal cual aparece en la factura, o vacio si no aparece",
   "ruc_empresa": "4545454-4",
   "fecha": "YYYY-MM-DD",
   "numero_factura": "001-001-0000001",
@@ -68,7 +55,7 @@ INSTRUCCIONES DE DETECCIÓN POR CAMPO:
    - Busca el nombre comercial más prominente, usualmente en negrita o tamaño mayor.
    - Si hay varios nombres, prioriza el del vendedor/emisor (no el del cliente).
 
-2. INFO:
+2. RUBRO:
    - Este campo busca capturar una frase o texto CORTO que indique a qué se dedica la empresa
      (su rubro/actividad), SOLO SI ese texto aparece explícitamente impreso en la factura.
    - Generalmente se ubica JUSTO DEBAJO del nombre de la empresa o JUSTO DEBAJO/AL LADO del logo,

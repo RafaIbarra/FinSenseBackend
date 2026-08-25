@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     R2_BUCKET_GASTOS:str
     R2_PUBLIC_URL_GASTOS:str
 
+    DIR_EMAIL:str
+    PASS_EMAIL:str
+
     @property
     def DATABASE_URL(self) -> str:
         return (

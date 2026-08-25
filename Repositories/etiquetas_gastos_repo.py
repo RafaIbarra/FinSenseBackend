@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.EtiquetasGastos import EtiquetasGastos
@@ -26,6 +26,38 @@ async def registrar_etiquetas_masivo(db: AsyncSession, nombres: list[str]):
     await db.flush()
 
     return RespuestaFuncion(data_registro=nuevas_etiquetas)
+
+
+async def obtener_o_crear_etiquetas(db: AsyncSession, nombres: list[str]):
+    nombres_normalizados = {
+        nombre.strip()
+        for nombre in nombres
+        if nombre and nombre.strip()
+    }
+    if not nombres_normalizados:
+        return RespuestaFuncion(data_registro=[])
+
+    result = await db.execute(
+        select(EtiquetasGastos).where(
+            func.lower(EtiquetasGastos.NombreEtiqueta).in_(
+                [nombre.lower() for nombre in nombres_normalizados]
+            )
+        )
+    )
+    etiquetas = list(result.scalars().all())
+    nombres_existentes = {etiqueta.NombreEtiqueta.lower() for etiqueta in etiquetas}
+    nombres_faltantes = [
+        nombre for nombre in nombres_normalizados
+        if nombre.lower() not in nombres_existentes
+    ]
+
+    if nombres_faltantes:
+        nuevas = [EtiquetasGastos(NombreEtiqueta=nombre) for nombre in nombres_faltantes]
+        db.add_all(nuevas)
+        await db.flush()
+        etiquetas.extend(nuevas)
+
+    return RespuestaFuncion(data_registro=[etiqueta.Id for etiqueta in etiquetas])
 
 
 async def registrar_etiqueta(db: AsyncSession, etiqueta: dict):
@@ -56,7 +88,7 @@ async def registrar_etiqueta(db: AsyncSession, etiqueta: dict):
 
         existente = await db.execute(
             select(EtiquetasGastos).where(
-                EtiquetasGastos.NombreEtiqueta == nombre,
+                func.lower(EtiquetasGastos.NombreEtiqueta) == func.lower(nombre),
             )
         )
         if existente.scalars().first():

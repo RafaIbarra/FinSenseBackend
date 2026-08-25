@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, func, Enum as SQLEnum, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, func, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -9,7 +9,7 @@ from Config.settings import Base
 class TipoRegistroEnum(enum.Enum):
     Manual = "Manual"
     Automatico = "Automatico"
-    Hibrido = "Hibrido"
+    Asistido = "Asistido"
 
 
 class MovimientosGastos(Base):
@@ -33,6 +33,10 @@ class MovimientosGastos(Base):
     usuario = relationship("Usuarios", back_populates="movimientos_gastos")
     categoria = relationship("CategoriasGastos", back_populates="movimientos_gastos")
     empresa = relationship("Empresas", back_populates="movimientos_gastos")
+    imagenes_pendientes = relationship(
+        "ImagenesPendientes",
+        back_populates="movimiento",
+    )
     imagenes = relationship(
         "MovimientosGastosImagenes",
         back_populates="movimiento_gasto",

@@ -34,12 +34,13 @@ def validar_token(raw_token: str, secret_key: str, algoritmo: str = "HS256") -> 
 
     return payload
 
-def create_token(subject: str, user_id:str, token_type: str, expires_delta: timedelta) -> str:
+def create_token(subject: str, user_id:str, session_id:str,token_type: str, expires_delta: timedelta) -> str:
     try:
         now = datetime.utcnow()
         payload = {
             "sub": subject,
             "user_id":user_id,
+            "session_id":session_id,
             "type": token_type,
             "iat": now,
             "exp": now + expires_delta,

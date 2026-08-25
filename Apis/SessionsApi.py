@@ -1,18 +1,19 @@
-from datetime import  timedelta
-
+from datetime import timedelta
+import uuid
 
 from fastapi import Depends, Form, HTTPException, Request, Response
 
-from sqlalchemy import select
+from sqlalchemy import select, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Common.routers_factory import generar_router
-from Config.settings import get_db,settings
+from Config.settings import get_db, settings
 from Models.SesionesActivas import SesionesActivas
 from Models.Usuarios import Usuarios
 
 from Security.password_utils import verify_password
 from Security.jwt_utils import create_token
+
 # ─── Routers ───────────────────────────────────────────────────────────────────
 _PREFIX = '/sessions'
 router_sesion_public = generar_router(_PREFIX, ["Sesiones"], protegido=False)
@@ -20,40 +21,62 @@ router_sesion_protegida = generar_router(_PREFIX, ["Sesiones"])
 
 # ─── Configuración ─────────────────────────────────────────────────────────────
 
-_ACCESS_TTL_MINUTES = 60 * 24 * 7
-_REFRESH_TTL_MINUTES = 60 * 24 * 7
-_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+# Navegador / dispositivos no móviles: 1 hora
+_BROWSER_ACCESS_TTL_MINUTES = 60
+_BROWSER_REFRESH_TTL_MINUTES = 60 * 24  # refresh token dura 1 día para renovar
+
+# Móvil: sesión larga (30 días)
+_MOBILE_ACCESS_TTL_MINUTES = 60 * 24 * 30
+_MOBILE_REFRESH_TTL_MINUTES = 60 * 24 * 30
+
+_COOKIE_MAX_AGE_BROWSER = 60 * 60  # 1 hora en segundos
+_COOKIE_MAX_AGE_MOBILE = 60 * 60 * 24 * 30  # 30 días
 
 
+def _es_dispositivo_movil(user_agent: str) -> bool:
+    """Detecta si el user-agent corresponde a un dispositivo móvil."""
+    if not user_agent:
+        return False
+    ua = user_agent.lower()
+    mobile_keywords = [
+        "mobile", "android", "iphone", "ipad", "ipod", "windows phone",
+        "blackberry", "opera mini", "webos"
+    ]
+    return any(kw in ua for kw in mobile_keywords)
 
-def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+
+def _set_auth_cookies(
+    response: Response,
+    access_token: str,
+    refresh_token: str,
+    max_age: int,
+) -> None:
     if settings.MODO_PRODUCCION:
         kwargs = {
             "httponly": True,
-            "samesite": "Lax",      # mismo dominio
-            "secure": True,         # obligatorio en producción con HTTPS
+            "samesite": "Lax",
+            "secure": True,
             "path": "/",
-            "max_age": _COOKIE_MAX_AGE,
+            "max_age": max_age,
         }
-        # ─── Si frontend y backend estuvieran en dominios distintos ─────────
-        # kwargs = {
-        #     "httponly": True,
-        #     "samesite": "None",   # obligatorio para cross-site
-        #     "secure": True,       # obligatorio cuando SameSite=None
-        #     "path": "/",
-        #     "max_age": _COOKIE_MAX_AGE,
-        # }
     else:
         kwargs = {
             "httponly": True,
             "samesite": None,
             "secure": False,
             "path": "/",
-            "max_age": _COOKIE_MAX_AGE,
+            "max_age": max_age,
         }
 
     response.set_cookie(key="access_token", value=access_token, **kwargs)
     response.set_cookie(key="refresh_token", value=refresh_token, **kwargs)
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    """Limpia las cookies de autenticación."""
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
@@ -76,45 +99,107 @@ async def login(
     if not verify_password(password, user.Password):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
-    # 2. Registrar sesión activa
-    dispositivo = request.headers.get("user-agent", "unknown")
+    # 2. Detectar tipo de dispositivo
+    user_agent = request.headers.get("user-agent", "unknown")
+    es_movil = _es_dispositivo_movil(user_agent)
+    dispositivo = user_agent
     ip_conexion = request.client.host if request.client else "unknown"
 
+    # 3. INVALIDAR sesiones previas del mismo usuario (un solo login activo)
+    # Elimina todas las sesiones activas previas de este usuario
+    await db.execute(
+        delete(SesionesActivas).where(SesionesActivas.UsuarioId == user.Id)
+    )
+    await db.commit()
+
+    # 4. Crear nueva sesión activa con identificador único
+    session_id = str(uuid.uuid4())
     sesion = SesionesActivas(
         UsuarioId=user.Id,
         Dispositivo=dispositivo,
         IpConexion=ip_conexion,
+        SessionId=session_id,  # <-- Asegúrate de agregar este campo en tu modelo
+        EsMovil=es_movil,        # <-- Asegúrate de agregar este campo en tu modelo
+        Activa=True,             # <-- Asegúrate de agregar este campo en tu modelo
     )
     db.add(sesion)
     await db.commit()
     await db.refresh(sesion)
 
-    # 3. Generar tokens
+    # 5. Definir TTL según dispositivo
+    if es_movil:
+        access_ttl = _MOBILE_ACCESS_TTL_MINUTES
+        refresh_ttl = _MOBILE_REFRESH_TTL_MINUTES
+        cookie_max_age = _COOKIE_MAX_AGE_MOBILE
+    else:
+        access_ttl = _BROWSER_ACCESS_TTL_MINUTES
+        refresh_ttl = _BROWSER_REFRESH_TTL_MINUTES
+        cookie_max_age = _COOKIE_MAX_AGE_BROWSER
+
+    # 6. Generar tokens (incluyendo session_id en el payload para validación)
     access_token = create_token(
-        str(user.UserName),str(user.Id), "access", timedelta(minutes=_ACCESS_TTL_MINUTES)
+        subject=str(user.UserName),
+        user_id=str(user.Id),
+        session_id= str(session_id),
+        token_type="access",
+        expires_delta=timedelta(minutes=access_ttl)
+        
     )
     refresh_token = create_token(
-        str(user.Id),str(user.Id), "refresh", timedelta(minutes=_REFRESH_TTL_MINUTES)
+        subject=str(user.Id),
+        user_id=str(user.Id),
+        session_id= str(session_id),
+        token_type="refresh",
+        expires_delta=timedelta(minutes=refresh_ttl),
+        
     )
 
-    # 4. Setear cookies
-    _set_auth_cookies(response, access_token, refresh_token)
+    # 7. Setear cookies
+    _set_auth_cookies(response, access_token, refresh_token, cookie_max_age)
 
-    # 5. Responder
+    # 8. Responder
     return {
         "status": "success",
         "UserName": user.UserName,
         "UserId": user.Id,
         "Correo": user.Correo,
         "SesionId": sesion.Id,
+        "Dispositivo": "Móvil" if es_movil else "Navegador/Otro",
+        "ExpiraEnMinutos": access_ttl,
     }
+
+
+@router_sesion_public.post("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Cierra la sesión actual y limpia las cookies."""
+    # Obtener session_id del token si existe
+    session_id = None
+    if hasattr(request.state, "session_id"):
+        session_id = request.state.session_id
+
+    if session_id:
+        await db.execute(
+            delete(SesionesActivas).where(SesionesActivas.SessionId == session_id)
+        )
+        await db.commit()
+
+    _clear_auth_cookies(response)
+    return {"status": "success", "detail": "Sesión cerrada correctamente"}
 
 
 @router_sesion_protegida.get("/control-sesion")
 async def control_sesion(request: Request):
-    
-    respuesta={
-        'Usuario':request.state.usuario,
-        'IdUsuario':request.state.id_usuario,
+    respuesta = {
+        'Usuario': request.state.usuario,
+        'IdUsuario': request.state.id_usuario,
     }
     return respuesta
+
+
+# ─── Middleware / Dependency para validar sesión activa ───────────────────────
+# Agrega esto en tu middleware de autenticación JWT o como dependency en endpoints protegidos
+

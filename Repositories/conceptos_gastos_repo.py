@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.ConceptosGastos import ConceptosGastos
@@ -26,6 +26,38 @@ async def registrar_conceptos_masivo(db: AsyncSession, nombres: list[str]):
     await db.flush()
 
     return RespuestaFuncion(data_registro=nuevos_conceptos)
+
+
+async def obtener_o_crear_conceptos(db: AsyncSession, nombres: list[str]):
+    nombres_normalizados = {
+        nombre.strip()
+        for nombre in nombres
+        if nombre and nombre.strip()
+    }
+    if not nombres_normalizados:
+        return RespuestaFuncion(data_registro=[])
+
+    result = await db.execute(
+        select(ConceptosGastos).where(
+            func.lower(ConceptosGastos.NombreConcepto).in_(
+                [nombre.lower() for nombre in nombres_normalizados]
+            )
+        )
+    )
+    conceptos = list(result.scalars().all())
+    nombres_existentes = {concepto.NombreConcepto.lower() for concepto in conceptos}
+    nombres_faltantes = [
+        nombre for nombre in nombres_normalizados
+        if nombre.lower() not in nombres_existentes
+    ]
+
+    if nombres_faltantes:
+        nuevos = [ConceptosGastos(NombreConcepto=nombre) for nombre in nombres_faltantes]
+        db.add_all(nuevos)
+        await db.flush()
+        conceptos.extend(nuevos)
+
+    return RespuestaFuncion(data_registro=[concepto.Id for concepto in conceptos])
 
 
 async def registrar_concepto(db: AsyncSession, concepto: dict):
@@ -56,7 +88,7 @@ async def registrar_concepto(db: AsyncSession, concepto: dict):
 
         existente = await db.execute(
             select(ConceptosGastos).where(
-                ConceptosGastos.NombreConcepto == nombre,
+                func.lower(ConceptosGastos.NombreConcepto) == func.lower(nombre),
             )
         )
         if existente.scalars().first():

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        .footer {
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Registro de Facturas Procesadas</h2>
+        </div>
+        <div class="content">
+            <p>Se han procesado las siguientes facturas pendientes:</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código Tarea</th>
+                        <th>ID Movimiento Gasto</th>
+                        <th>Fecha/Hora Procesado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in registros %}
+                    <tr>
+                        <td>{{ item.codigo_tarea }}</td>
+                        <td>{{ item.id_reg }}</td>
+                        <td>{{ item.fecha_hora_procesado }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="footer">
+            Este correo fue generado automáticamente por el sistema.
+        </div>
+    </div>
+</body>
+</html>

@@ -1,33 +1,47 @@
 from Integrations.r2_storage import *
+from Schemas.Respuestas import RespuestaImagenesSubidas
 
 
-async def registrar_imagenes(img, contexto):
-    """Sube una imagen a R2 y devuelve url + mensaje de error si aplica."""
-    try:
-        if hasattr(img, "read") and callable(img.read):
+async def registrar_lista_imagenes(imagenes):
+    imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
+    
+    imagenes_errores = []
+    mensaje_imagen=""
+    imagenes_subidas = []
+    listado_urls=[]
+    registro_correcto=True
+    for index, (file_bytes, file_name) in enumerate(imagenes[:2], start=1):
+        try:
+            resultado = await registrar_imagenes(file_bytes, file_name)
+            url_imagen = resultado.get("url")
+            success_imagen = resultado.get("success", False)
+            mensaje_imagen=resultado.get("mensaje", False)
+            if success_imagen:
+                imagenes_subidas.append(url_imagen)
+            else:
+                imagenes_errores.append(index)
+        except Exception:
+            imagenes_errores.append(index)
+            continue
+    if imagenes_errores:
+        registro_correcto=False
+        for ur in imagenes_subidas:
             try:
-                await img.seek(0)
+                r2_storage.delete_gasto_image(ur)
             except Exception:
                 pass
-            file_bytes = await img.read()
-            file_name = getattr(img, "filename", None) or getattr(img, "name", None) or "factura.jpg"
-        elif isinstance(img, (bytes, bytearray)):
-            file_bytes = bytes(img)
-            file_name = "factura.jpg"
-        elif isinstance(img, dict):
-            file_bytes = img.get("bytes") or img.get("content") or b""
-            file_name = img.get("filename") or img.get("name") or "factura.jpg"
-        else:
-            return {
-                "url": None,
-                "mensaje": "No se recibió una imagen válida."
-            }
+    else:
+        listado_urls=imagenes_subidas.copy()
+    return RespuestaImagenesSubidas(urls_img=listado_urls,success=registro_correcto,mensaje_error=mensaje_imagen)
+    
 
+
+async def registrar_imagenes(file_bytes: bytes, file_name: str):
+    """Sube una imagen a R2 y devuelve url + mensaje de error si aplica."""
+    try:
         if not file_bytes:
-            return {
-                "url": None,
-                "mensaje": "La imagen viene vacía."
-            }
+            return {"url": None, "mensaje": "La imagen viene vacía."}
+        
 
         resultado = r2_storage.upload_gasto_image(
             file_bytes=file_bytes,

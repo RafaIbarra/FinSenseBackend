@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.CategoriasGastos import CategoriasGastos
@@ -12,6 +12,26 @@ async def listar_categorias(db: AsyncSession):
         .order_by(CategoriasGastos.Id.desc())
     )
     return result.scalars().all()
+
+
+async def obtener_o_crear_categoria(db: AsyncSession, nombre: str):
+    nombre = str(nombre or "").strip()
+    if not nombre:
+        return RespuestaFuncion(success_registro=False, mensaje="El nombre de la categoría es obligatorio")
+
+    result = await db.execute(
+        select(CategoriasGastos).where(
+            func.lower(CategoriasGastos.NombreCategoria) == func.lower(nombre),
+        )
+    )
+    categoria = result.scalars().first()
+    if categoria:
+        return RespuestaFuncion(data_registro=categoria)
+
+    categoria = CategoriasGastos(NombreCategoria=nombre)
+    db.add(categoria)
+    await db.flush()
+    return RespuestaFuncion(data_registro=categoria)
 
 
 async def registrar(db: AsyncSession, categoria: dict):
@@ -51,7 +71,7 @@ async def registrar(db: AsyncSession, categoria: dict):
         categoria_existente = await db.execute(
             select(CategoriasGastos).where(
                 
-                CategoriasGastos.NombreCategoria == nombre,
+                func.lower(CategoriasGastos.NombreCategoria) == func.lower(nombre),
             )
         )
         if categoria_existente.scalars().first():

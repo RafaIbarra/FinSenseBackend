@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+
 
 from Models.CategoriasGastos import CategoriasGastos
 from Models.Empresas import Empresas
@@ -9,75 +9,11 @@ from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
 from Integrations.r2_storage import *
-from Utils.img_works import registrar_imagenes
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 
 
-async def movimientos_usuario(db: AsyncSession, id_usuario: int):
-    result = await db.execute(
-        select(MovimientosGastos)
-        .where(MovimientosGastos.UsuarioId == id_usuario)
-        .options(
-            selectinload(MovimientosGastos.empresa),
-            selectinload(MovimientosGastos.categoria),
-            selectinload(MovimientosGastos.etiquetas).selectinload(
-                MovimientosGastosEtiquetas.etiqueta
-            ),
-            selectinload(MovimientosGastos.conceptos).selectinload(
-                MovimientosGastosConceptos.concepto
-            ),
-            selectinload(MovimientosGastos.imagenes),
-        )
-        .order_by(MovimientosGastos.FechaRegistro.desc())
-    )
-    movimientos = result.scalars().all()
 
-    def formatear_fecha(fecha):
-        return fecha.strftime("%d/%m/%y %H:%M_%S") if fecha else None
-
-    return [
-        {
-            "id": movimiento.Id,
-            "fecha_registro": formatear_fecha(movimiento.FechaRegistro),
-            "fecha_gasto": movimiento.FechaGasto.strftime("%d/%m/%y") if movimiento.FechaGasto else None,
-            "total_gasto": movimiento.TotalGasto,
-            "iva_diez": movimiento.IvaDiez,
-            "iva_cinco": movimiento.IvaCinco,
-            "tipo_registro": movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro),
-            "categoria_id": movimiento.CategoriaId,
-            "empresa_id": movimiento.EmpresaId,
-            "empresa": {
-                "id": movimiento.empresa.Id,
-                "nombre": movimiento.empresa.NombreEmpresa,
-                "ruc": movimiento.empresa.Ruc,
-                "url_logo": movimiento.empresa.UrlLogo,
-            } if movimiento.empresa else None,
-            "categoria": {
-                "id": movimiento.categoria.Id,
-                "nombre": movimiento.categoria.NombreCategoria,
-            } if movimiento.categoria else None,
-            "numero_factura": movimiento.NumeroFactura,
-            "modelo_extraccion_datos": movimiento.ModeloExtraccionDatos,
-            "modelo_clasificador": movimiento.ModeloClasificador,
-            "etiquetas": [
-                {
-                    "idetiqueta": enlace.EtiquetaId,
-                    "nombre": enlace.etiqueta.NombreEtiqueta,
-                }
-                for enlace in movimiento.etiquetas
-            ],
-            "conceptos": [
-                {
-                    "idconcepto": enlace.ConceptoId,
-                    "nombre": enlace.concepto.NombreConcepto,
-                }
-                for enlace in movimiento.conceptos
-            ],
-            "imagenes": [imagen.UrlImagen for imagen in movimiento.imagenes],
-        }
-        for movimiento in movimientos
-    ]
 
 async def obtener_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
     result = await db.execute(
@@ -241,16 +177,11 @@ async def registrar(db: AsyncSession, movimiento: dict):
             imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
             for index, img in enumerate(imagenes[:2], start=1):
                 try:
-                    # resultado = await registrar_imagenes(img, {"index": index})
-                    # url_imagen = resultado.get("url")
-                    # mensaje_imagen = resultado.get("mensaje", "")
-                    url_imagen=""
-                    mensaje_imagen=""
                     imagen = MovimientosGastosImagenes(
-                        UrlImagen=url_imagen or "",
+                        UrlImagen=img or "",
                         ReferenciaCola="",
                         MovimientoGastoId=nuevo_movimiento.Id,
-                        ErrorUploadImg=mensaje_imagen
+                        ErrorUploadImg=""
                     )
                     db.add(imagen)
 
@@ -259,7 +190,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
 
             await db.commit()
 
-        return RespuestaFuncion()
+        return RespuestaFuncion(data_registro=nuevo_movimiento)
 
     except Exception as e:
         await db.rollback()

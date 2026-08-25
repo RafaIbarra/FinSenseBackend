@@ -1,8 +1,9 @@
 from groq import AsyncGroq
-from pydantic import BaseModel
-from typing import List, Optional, Dict
+
+from typing import Optional, Dict
 from Config.settings import settings
 from Repositories.errores_modelos import registro_error
+from Schemas.integrations_schemas import ClasificacionGasto
 import json
 
 GROQ_API_KEY = settings.GROQ_API_KEY
@@ -16,7 +17,7 @@ MODEL_KWARGS = {
 }
 DEFAULT_MODEL_KWARGS = {"max_tokens": 300}
 
-CLASIFICACION_DEFAULT = "Desconocido"
+CATEGORIA_DEFAULT = "Desconocido"
 ETIQUETAS_DEFAULT = ["Sin Etiquetas"]
 MAX_ETIQUETAS = 5
 
@@ -55,10 +56,7 @@ ETIQUETA_SYNONYMS = {
 
 
 
-class ClasificacionGasto(BaseModel):
-    clasificacion: str
-    etiquetas: List[str]
-    modelo_clasificador: str
+
 
 
 SYSTEM_PROMPT_CLASIFICADOR = f"""
@@ -71,13 +69,13 @@ Vas a recibir:
 
 Tu trabajo es devolver DOS cosas:
 
-1) "clasificacion": UNA sola categoría que describa a qué se dedica la EMPRESA (no los conceptos).
+1) "categoria": UNA sola categoría que describa a qué se dedica la EMPRESA (no los conceptos).
    - Basate primero en el nombre de la empresa. Si reconocés la empresa (por conocimiento general o porque
      el nombre es muy indicativo del rubro), asignale la categoría correspondiente.
    - Si el nombre no te da seguridad, usa "info_empresa" (si no está vacío) como apoyo para decidir.
    - Si aun así no podés determinar el rubro con razonable confianza, devolvé "Desconocido". No inventes.
    - Ejemplos de referencia (son solo ejemplos, hay muchísimos más casos posibles, generalizá el criterio):
-     * Supermercados: Biggie, Stock, Super Seis, Salemma
+     * Supermercados: Biggie,Stock, Super Seis, Salemma
      * Servicios Básicos: ANDE (Administración Nacional de Electricidad), ESSAP, COPACO
      * Combustible/Estaciones de servicio: Petrobras, Puma, Barcos y Rodados
      * Farmacia: Farmacenter, Punto Farma
@@ -96,7 +94,7 @@ Tu trabajo es devolver DOS cosas:
      * Electrodomesticos, Vestimenta, Papeleria, Mascotas, Ferreteria, Farmacia, etc.
 
 Responde ÚNICAMENTE con un JSON válido en este formato exacto, sin explicaciones ni markdown:
-{{"clasificacion": "NombreCategoria", "etiquetas": ["Etiqueta1", "Etiqueta2"]}}
+{{"categoria": "NombreCategoria", "etiquetas": ["Etiqueta1", "Etiqueta2"]}}
 """
 
 def _canonicalizar(texto: str, mapeo: dict) -> str:
@@ -122,13 +120,13 @@ async def disponibilidad():
 
 def _construir_user_prompt(data_clasificacion: Dict) -> str:
     empresa = (data_clasificacion.get("empresa") or "").strip()
-    info_empresa = (data_clasificacion.get("info_empresa") or "").strip()
+    rubro_empresa = (data_clasificacion.get("rubro_empresa") or "").strip()
     conceptos = data_clasificacion.get("conceptos") or []
 
     partes = [f"Empresa: {empresa if empresa else '(sin nombre de empresa)'}"]
 
-    if info_empresa:
-        partes.append(f"Info de la empresa: {info_empresa}")
+    if rubro_empresa:
+        partes.append(f"Rubro de la empresa: {rubro_empresa}")
     else:
         partes.append("Info de la empresa: (no disponible)")
 
@@ -142,12 +140,12 @@ def _construir_user_prompt(data_clasificacion: Dict) -> str:
 
 
 def _normalizar_respuesta(data: dict, modelo: str) -> ClasificacionGasto:
-    clasificacion_raw = (data.get("clasificacion") or "").strip()
-    if not clasificacion_raw:
-        clasificacion = CLASIFICACION_DEFAULT
+    categoria_raw = (data.get("categoria") or "").strip()
+    if not categoria_raw:
+        categoria = CATEGORIA_DEFAULT
     else:
         
-        clasificacion = _canonicalizar(clasificacion_raw, CLASIFICACION_SYNONYMS)
+        categoria = _canonicalizar(categoria_raw, CLASIFICACION_SYNONYMS)
 
     etiquetas_raw = data.get("etiquetas")
     if not isinstance(etiquetas_raw, list):
@@ -172,7 +170,7 @@ def _normalizar_respuesta(data: dict, modelo: str) -> ClasificacionGasto:
         etiquetas = etiquetas_normalizadas[:MAX_ETIQUETAS]
 
     return ClasificacionGasto(
-        clasificacion=clasificacion,
+        categoria=categoria,
         etiquetas=etiquetas,
         modelo_clasificador=modelo,
     )
@@ -205,8 +203,9 @@ async def _clasificar_con_modelo(modelo: str, user_prompt: str, time_out: int) -
 
 
 async def clasificar_gasto(data_clasificacion: Dict, time_out: int) -> ClasificacionGasto:
+    
     """
-    Clasifica un gasto basándose en la empresa, info de la empresa y los conceptos
+    Clasifica un gasto basándose en la empresa, rubro de la empresa y los conceptos
     extraídos de una factura.
 
     Prueba los modelos definidos en MODELS_FALLBACK en orden, de a uno: si el modelo
@@ -216,12 +215,12 @@ async def clasificar_gasto(data_clasificacion: Dict, time_out: int) -> Clasifica
     Args:
         data_clasificacion: dict con las claves:
             - "empresa": str, nombre de la empresa.
-            - "info_empresa": str, info adicional de la empresa (puede venir vacío).
+            - "rubro_empresa": str, rubro o actividad economica de la empresa (puede venir vacío).
             - "conceptos": List[str], ítems detallados en la factura (puede venir vacío).
         time_out: timeout en segundos para la llamada a la API.
 
     Returns:
-        ClasificacionGasto: clasificación de la empresa y etiquetas de los conceptos.
+        CategoriaGasto: categoria de la empresa y etiquetas de los conceptos.
 
     Raises:
         ValueError: Si NINGÚN modelo de la lista devolvió JSON válido.
@@ -229,10 +228,11 @@ async def clasificar_gasto(data_clasificacion: Dict, time_out: int) -> Clasifica
     """
     empresa = (data_clasificacion.get("empresa") or "").strip()
     conceptos = data_clasificacion.get("conceptos") or []
+    
 
     if not empresa and not conceptos:
         return ClasificacionGasto(
-            clasificacion=CLASIFICACION_DEFAULT,
+            clasificacion=CATEGORIA_DEFAULT,
             etiquetas=list(ETIQUETAS_DEFAULT),
             modelo_clasificador="",
         )

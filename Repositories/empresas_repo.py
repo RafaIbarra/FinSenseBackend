@@ -25,6 +25,7 @@ async def registrar(db: AsyncSession, empresa: dict):
 
         empresa_id = empresa.get("id", 0) or 0
         nombre = str(empresa.get("nombre", "")).strip()
+        rubro = str(empresa.get("rubro", "")).strip()
         ruc = str(empresa.get("ruc", "")).strip()
         logo_img = empresa.get("logo_img")
         url_logo = None
@@ -73,6 +74,7 @@ async def registrar(db: AsyncSession, empresa: dict):
         try:
             nueva_empresa = Empresas(
                 NombreEmpresa=nombre,
+                Rubro=rubro,
                 Ruc=ruc,
                 UrlLogo=url_logo,
             )
@@ -112,3 +114,30 @@ async def eliminar_empresa(db: AsyncSession, empresa_id: int):
         await db.rollback()
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
     return RespuestaFuncion()
+
+async def obtener_o_crear_empresa(db: AsyncSession, nombre:str, ruc:str,rubro:str):
+    try:
+        registro_empresa = await db.execute(
+                        select(Empresas).where(Empresas.Ruc == ruc)
+                    )
+        empresa=registro_empresa.scalars().first()
+        if not empresa:
+            empresa_data = {
+                    "id": 0,
+                    "nombre": nombre,
+                    "ruc": ruc,
+                    "rubro":rubro,
+                    "logo_img": "",
+                }
+            empresa=await registrar(db, empresa_data)
+            if not empresa.success_registro:
+                return RespuestaFuncion(success_registro=False, mensaje=empresa.mensaje)
+            empresa = empresa.data_registro
+
+        return RespuestaFuncion(data_registro=empresa)
+
+    except Exception as e:
+        await db.rollback()
+        return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
+    
+
