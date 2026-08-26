@@ -40,11 +40,16 @@ class Settings(BaseSettings):
     R2_ACCESS_KEY_ID:str
     R2_SECRET_ACCESS_KEY:str
     R2_ENDPOINT_URL:str
+
     R2_BUCKET_GASTOS:str
     R2_PUBLIC_URL_GASTOS:str
 
+    R2_BUCKET_EMPRESAS:str
+    R2_PUBLIC_URL_EMPRESAS:str
+    
     DIR_EMAIL:str
     PASS_EMAIL:str
+    ALLOWED_ORIGINS:str
 
     @property
     def DATABASE_URL(self) -> str:

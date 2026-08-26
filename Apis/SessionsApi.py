@@ -13,7 +13,8 @@ from Models.Usuarios import Usuarios
 
 from Security.password_utils import verify_password
 from Security.jwt_utils import create_token
-
+from Common.cookie_names import ACCESS_COOKIE, REFRESH_COOKIE
+from Common.rate_limit_middleware import rate_limit
 # ─── Routers ───────────────────────────────────────────────────────────────────
 _PREFIX = '/sessions'
 router_sesion_public = generar_router(_PREFIX, ["Sesiones"], protegido=False)
@@ -68,19 +69,20 @@ def _set_auth_cookies(
             "max_age": max_age,
         }
 
-    response.set_cookie(key="access_token", value=access_token, **kwargs)
-    response.set_cookie(key="refresh_token", value=refresh_token, **kwargs)
+    response.set_cookie(key=ACCESS_COOKIE, value=access_token, **kwargs)
+    response.set_cookie(key=REFRESH_COOKIE, value=refresh_token, **kwargs)
 
 
 def _clear_auth_cookies(response: Response) -> None:
     """Limpia las cookies de autenticación."""
-    response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/")
+    response.delete_cookie(key=ACCESS_COOKIE, path="/")
+    response.delete_cookie(key=REFRESH_COOKIE, path="/")
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router_sesion_public.post("/login")
+@rate_limit(max_requests=5, window_seconds=60)
 async def login(
     request: Request,
     response: Response,
@@ -118,9 +120,9 @@ async def login(
         UsuarioId=user.Id,
         Dispositivo=dispositivo,
         IpConexion=ip_conexion,
-        SessionId=session_id,  # <-- Asegúrate de agregar este campo en tu modelo
-        EsMovil=es_movil,        # <-- Asegúrate de agregar este campo en tu modelo
-        Activa=True,             # <-- Asegúrate de agregar este campo en tu modelo
+        SessionId=session_id,  
+        EsMovil=es_movil,      
+        Activa=True,           
     )
     db.add(sesion)
     await db.commit()
@@ -170,6 +172,7 @@ async def login(
 
 
 @router_sesion_public.post("/logout")
+
 async def logout(
     request: Request,
     response: Response,

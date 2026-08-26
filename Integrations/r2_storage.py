@@ -27,11 +27,13 @@ class R2Storage:
 
         # Nombres de buckets (desde settings, deben existir en R2)
         self.bucket_gastos = getattr(settings, 'R2_BUCKET_GASTOS', '')
+        self.bucket_empresas = getattr(settings, 'R2_BUCKET_EMPRESAS', '')
         
 
         # URLs públicas por bucket (dominios personalizados conectados en R2)
         self.public_urls = {
             self.bucket_gastos: getattr(settings, 'R2_PUBLIC_URL_GASTOS', ''),
+            self.bucket_empresas: getattr(settings, 'R2_PUBLIC_URL_EMPRESAS', ''),
             
         }
 
