@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from Config.settings import get_db
 from Common.routers_factory import generar_router
+from Common.rate_limit_middleware import rate_limit
 from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario
 
 router_movimientos_listados = generar_router('/gastos-listados')
@@ -31,6 +32,7 @@ async def listar_imagens_usuario(
         "datos":datos
     }
 @router_movimientos_listados.get("/dashboard-usuario")
+@rate_limit(max_requests=5, window_seconds=60)
 async def estadisticas(
     request: Request,
     db: AsyncSession = Depends(get_db),

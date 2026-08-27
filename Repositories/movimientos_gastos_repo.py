@@ -128,16 +128,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
             ModeloClasificador= movimiento.get("model_clasificador",'') 
         )
 
-        # Desde acá en adelante todo corre en UNA sola transacción: usamos flush()
-        # (que asigna el Id y sincroniza con la BD sin cerrar la transacción) en vez
-        # de commit(). El único commit() queda al final; si algo falla antes, el
-        # except de más abajo hace rollback() y deshace TODO lo de este bloque
-        # (nuevo_movimiento, imagenes, conceptos y etiquetas), replicando el
-        # comportamiento de transaction.atomic() de Django.
-        # Bloque atómico: movimiento + conceptos + etiquetas se guardan juntos o nada.
-        # Se usa flush() (no commit()) para conceptos/etiquetas: así, si algo falla en
-        # cualquiera de los tres, el rollback() deshace TODO el bloque, incluyendo el
-        # nuevo_movimiento (que todavía no fue comiteado).
+        
         try:
             db.add(nuevo_movimiento)
             await db.flush()  # asigna nuevo_movimiento.Id sin comitear

@@ -1,64 +1,32 @@
-# Common/rate_limit_middleware.py
 """
-Rate limiting POR ENDPOINT, implementado como dependency de FastAPI
-(ya no como middleware ASGI), para poder tener un límite distinto por
-ruta sin tener que declarar nada en la mayoría de los endpoints.
-
-Comportamiento:
-  - Desarrollo: NUNCA bloquea. Solo loguea una advertencia + headers.
-  - Producción: bloquea con 429 al superar el límite.
-
-Uso:
-  1) DEFAULT (no hay que hacer nada): todos los endpoints quedan
-     protegidos automáticamente con DEFAULT_MAX_REQUESTS /
-     DEFAULT_WINDOW_SECONDS, porque la dependency se registra UNA
-     sola vez a nivel de app en main.py:
-
-         app = FastAPI(dependencies=[Depends(default_rate_limiter)])
-
-  2) OVERRIDE puntual (ej: /login más estricto que el resto):
-
-         @router.post("/login")
-         @rate_limit(max_requests=5, window_seconds=60)
-         async def login(...):
-             ...
-
-     Importante: @rate_limit(...) va DEBAJO de @router.post/@router.get
-     (se aplica a la función antes de que la ruta la registre). No
-     agrega una dependency nueva ni duplica el chequeo: solo marca la
-     función con el límite a usar, y default_rate_limiter lo respeta.
-
-Limitación conocida:
-  El almacenamiento es en memoria (dict por proceso). Válido con 1 solo
-  worker. Si se corre con varios workers/instancias, cada uno cuenta por
-  separado y el límite real termina siendo max_requests * n_workers.
-  Para eso hace falta un backend compartido (Redis, etc.) — fuera del
-  alcance de este cambio puntual.
+Rate limiting con 'limits' (MovingWindowRateLimiter).
+  - Desarrollo: NUNCA bloquea. Loguea advertencia + headers.
+  - Producción: bloquea con 429 cuando excede.
+  - Storage en memoria. Para escalar: cambiar MemoryStorage por RedisStorage.
 """
 import time
-import logging
 from collections import defaultdict
-from typing import Callable, Optional
+from typing import Callable
 
 from fastapi import Request, Response, HTTPException
+from limits import parse
+from limits.storage import MemoryStorage
+from limits.strategies import MovingWindowRateLimiter
 
 from Config.settings import settings
 
-logger = logging.getLogger("rate_limit")
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+# print(f"🚀 Rate limiter cargado. MODO_PRODUCCION={settings.MODO_PRODUCCION}")
 
-
-# ─── Configuración por defecto (aplica a TODO endpoint sin override) ──────────
+# ─── Configuración por defecto ────────────────────────────────────────────────
 DEFAULT_MAX_REQUESTS = 200
 DEFAULT_WINDOW_SECONDS = 60
 
+# ─── Motor de limits ──────────────────────────────────────────────────────────
+_storage = MemoryStorage()
+_limiter = MovingWindowRateLimiter(_storage)
 
-# ─── Storage: (ip, path_de_ruta) -> lista de timestamps ───────────────────────
-_buckets: dict[tuple[str, str], list[float]] = defaultdict(list)
+# ─── Contador auxiliar para headers/logs (sliding window manual) ─────────────
+_requests: dict[tuple[str, str, int], list[float]] = defaultdict(list)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -71,58 +39,23 @@ def _get_client_ip(request: Request) -> str:
 
 
 def _get_route_path(request: Request) -> str:
-    """
-    Path 'template' de la ruta (ej: /sessions/login), NO la URL literal.
-    Así /users/1 y /users/2 comparten el mismo bucket, en vez de crear
-    uno nuevo por cada valor de path param.
-    """
     route = request.scope.get("route")
     if route is not None and getattr(route, "path", None):
         return route.path
     return request.url.path
 
 
-def _check_and_register(request: Request, max_requests: int, window_seconds: int) -> int:
-    """
-    Registra la petición actual en su bucket (ip, path) y lanza 429
-    si corresponde bloquear. Devuelve el conteo actual (post-registro).
-    """
-    client_ip = _get_client_ip(request)
-    path = _get_route_path(request)
-    key = (client_ip, path)
-    now = time.time()
-
-    # Limpiar timestamps fuera de ventana
-    vigentes = [ts for ts in _buckets[key] if now - ts < window_seconds]
-    current_count = len(vigentes)
-    vigentes.append(now)
-
-    # Guardar o, si quedó vacío el bucket, eliminar la key (evita
-    # acumular entradas de IPs viejas para siempre en memoria)
-    _buckets[key] = vigentes
-
-    if current_count >= max_requests:
-        if settings.MODO_PRODUCCION:
-            raise HTTPException(
-                status_code=429,
-                detail="Demasiadas peticiones. Intentá más tarde.",
-                headers={"Retry-After": str(window_seconds)},
-            )
-        else:
-            logger.warning(
-                f"[RateLimit] ⚠️ ADVERTENCIA IP={client_ip} Path={path} — "
-                f"excedió {max_requests} peticiones pero NO se bloquea (modo desarrollo)"
-            )
-
-    return current_count + 1
+def _build_limit_str(max_requests: int, window_seconds: int) -> str:
+    """Construye string válido para limits.parse()."""
+    return f"{max_requests} per {window_seconds} seconds"
 
 
 async def default_rate_limiter(request: Request, response: Response) -> None:
-    """
-    Dependency global. Se registra UNA VEZ en main.py y se ejecuta en
-    TODOS los endpoints. Si el endpoint tiene @rate_limit(...), usa ese
-    límite; si no, usa el default global.
-    """
+    client_ip = _get_client_ip(request)
+    path = _get_route_path(request)
+    key = f"{client_ip}:{path}"
+
+    # 1. Detectar si el endpoint tiene @rate_limit(...)
     route = request.scope.get("route")
     endpoint = getattr(route, "endpoint", None)
     override = getattr(endpoint, "_rate_limit_override", None)
@@ -132,9 +65,36 @@ async def default_rate_limiter(request: Request, response: Response) -> None:
     else:
         max_requests, window_seconds = DEFAULT_MAX_REQUESTS, DEFAULT_WINDOW_SECONDS
 
-    count = _check_and_register(request, max_requests, window_seconds)
+    limit_str = _build_limit_str(max_requests, window_seconds)
+    parsed = parse(limit_str)
 
-    # Headers informativos (solo se aplican si no se bloqueó / o en dev tras advertir)
+    # 2. Contador casero para headers (sliding window real)
+    now = time.time()
+    dict_key = (client_ip, path, window_seconds)
+    _requests[dict_key] = [
+        ts for ts in _requests[dict_key]
+        if now - ts < window_seconds
+    ]
+    _requests[dict_key].append(now)
+    count = len(_requests[dict_key])
+
+    # 3. Verificar con limits
+    permitido = _limiter.hit(parsed, key)
+
+    # print(f"[RL] IP={client_ip} | Path={path} | count={count}/{max_requests} | limits_hit={permitido} | window={window_seconds}s")
+
+    if not permitido:
+        if settings.MODO_PRODUCCION:
+            print(f"[RL] 🚫 BLOQUEADO {key}")
+            raise HTTPException(
+                status_code=429,
+                detail="Demasiadas peticiones.",
+                headers={"Retry-After": str(window_seconds)},
+            )
+        else:
+            print(f"[RL] ⚠️ ADVERTENCIA: {key} excedió {limit_str}")
+
+    # 4. Headers informativos
     response.headers["X-Rate-Limit-Count"] = str(count)
     response.headers["X-Rate-Limit-Max"] = str(max_requests)
     if count > max_requests and not settings.MODO_PRODUCCION:
@@ -144,7 +104,7 @@ async def default_rate_limiter(request: Request, response: Response) -> None:
 def rate_limit(max_requests: int, window_seconds: int) -> Callable:
     """
     Decorador para sobreescribir el límite en un endpoint puntual.
-    Debe ir DEBAJO del decorador de ruta:
+    Va DEBAJO del decorador de ruta:
 
         @router.post("/login")
         @rate_limit(max_requests=5, window_seconds=60)

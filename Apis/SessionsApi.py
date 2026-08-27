@@ -3,7 +3,7 @@ import uuid
 
 from fastapi import Depends, Form, HTTPException, Request, Response
 
-from sqlalchemy import select, delete, and_
+from sqlalchemy import select,  and_,update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Common.routers_factory import generar_router
@@ -12,9 +12,11 @@ from Models.SesionesActivas import SesionesActivas
 from Models.Usuarios import Usuarios
 
 from Security.password_utils import verify_password
-from Security.jwt_utils import create_token
+from Security.jwt_utils import create_token,validar_token, AuthError
 from Common.cookie_names import ACCESS_COOKIE, REFRESH_COOKIE
 from Common.rate_limit_middleware import rate_limit
+from Utils.error_utils import limpiar_mensaje_error_bd
+
 # ─── Routers ───────────────────────────────────────────────────────────────────
 _PREFIX = '/sessions'
 router_sesion_public = generar_router(_PREFIX, ["Sesiones"], protegido=False)
@@ -63,7 +65,7 @@ def _set_auth_cookies(
     else:
         kwargs = {
             "httponly": True,
-            "samesite": None,
+            "samesite": "Lax",
             "secure": False,
             "path": "/",
             "max_age": max_age,
@@ -107,27 +109,32 @@ async def login(
     dispositivo = user_agent
     ip_conexion = request.client.host if request.client else "unknown"
 
-    # 3. INVALIDAR sesiones previas del mismo usuario (un solo login activo)
-    # Elimina todas las sesiones activas previas de este usuario
-    await db.execute(
-        delete(SesionesActivas).where(SesionesActivas.UsuarioId == user.Id)
-    )
-    await db.commit()
+
+    
 
     # 4. Crear nueva sesión activa con identificador único
-    session_id = str(uuid.uuid4())
-    sesion = SesionesActivas(
-        UsuarioId=user.Id,
-        Dispositivo=dispositivo,
-        IpConexion=ip_conexion,
-        SessionId=session_id,  
-        EsMovil=es_movil,      
-        Activa=True,           
-    )
-    db.add(sesion)
-    await db.commit()
-    await db.refresh(sesion)
+    try:
+        await db.execute(
+                        update(SesionesActivas)
+                        .where(SesionesActivas.UsuarioId == user.Id)
+                        .values(Activa=False)
+                    )
+        await db.commit()
 
+        session_id = str(uuid.uuid4())
+        sesion = SesionesActivas(
+            UsuarioId=user.Id,
+            Dispositivo=dispositivo,
+            IpConexion=ip_conexion,
+            SessionId=session_id,  
+            EsMovil=es_movil,      
+            Activa=True,           
+        )
+        db.add(sesion)
+        await db.commit()
+        await db.refresh(sesion)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=limpiar_mensaje_error_bd(str(exc)))
     # 5. Definir TTL según dispositivo
     if es_movil:
         access_ttl = _MOBILE_ACCESS_TTL_MINUTES
@@ -139,22 +146,25 @@ async def login(
         cookie_max_age = _COOKIE_MAX_AGE_BROWSER
 
     # 6. Generar tokens (incluyendo session_id en el payload para validación)
-    access_token = create_token(
-        subject=str(user.UserName),
-        user_id=str(user.Id),
-        session_id= str(session_id),
-        token_type="access",
-        expires_delta=timedelta(minutes=access_ttl)
-        
-    )
-    refresh_token = create_token(
-        subject=str(user.Id),
-        user_id=str(user.Id),
-        session_id= str(session_id),
-        token_type="refresh",
-        expires_delta=timedelta(minutes=refresh_ttl),
-        
-    )
+    try:
+        access_token = create_token(
+            subject=str(user.UserName),
+            user_id=str(user.Id),
+            session_id= str(session_id),
+            token_type="access",
+            expires_delta=timedelta(minutes=access_ttl)
+            
+        )
+        refresh_token = create_token(
+            subject=str(user.Id),
+            user_id=str(user.Id),
+            session_id= str(session_id),
+            token_type="refresh",
+            expires_delta=timedelta(minutes=refresh_ttl),
+            
+        )
+    except AuthError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.mensaje)
 
     # 7. Setear cookies
     _set_auth_cookies(response, access_token, refresh_token, cookie_max_age)
@@ -171,8 +181,7 @@ async def login(
     }
 
 
-@router_sesion_public.post("/logout")
-
+@router_sesion_protegida.post("/logout")
 async def logout(
     request: Request,
     response: Response,
@@ -181,17 +190,107 @@ async def logout(
     """Cierra la sesión actual y limpia las cookies."""
     # Obtener session_id del token si existe
     session_id = None
+    usuario_id = request.state.id_usuario
     if hasattr(request.state, "session_id"):
         session_id = request.state.session_id
-
+    print(f'la sesion es {session_id} y el usuario es {usuario_id}')
     if session_id:
         await db.execute(
-            delete(SesionesActivas).where(SesionesActivas.SessionId == session_id)
+            update(SesionesActivas)
+            .where(SesionesActivas.SessionId == session_id)
+            .values(Activa=False)
         )
         await db.commit()
 
     _clear_auth_cookies(response)
     return {"status": "success", "detail": "Sesión cerrada correctamente"}
+
+
+
+@router_sesion_public.post("/refresh-token")
+@rate_limit(max_requests=10, window_seconds=60)
+async def refresh_token(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    # 1. Extraer refresh_token
+    raw_token = request.cookies.get(REFRESH_COOKIE)
+    if not raw_token:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            raw_token = auth_header[7:]
+
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Refresh token no proporcionado")
+
+    # 2. Validar JWT
+    try:
+        payload = validar_token(raw_token, settings.SECRET_KEY, settings.JWT_ALGORITHM)
+    except AuthError:
+        raise HTTPException(status_code=401, detail="Refresh token inválido o expirado")
+
+    # 3. Verificar que sea tipo refresh
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Token de tipo incorrecto")
+
+    # 4. Extraer session_id y validar sesión activa en BD
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Sesión no válida")
+    try:
+        result = await db.execute(
+            select(SesionesActivas).where(
+                and_(SesionesActivas.SessionId == session_id, SesionesActivas.Activa == True)
+            )
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=limpiar_mensaje_error_bd(str(exc)))
+    
+    sesion = result.scalars().first()
+    if not sesion:
+        raise HTTPException(status_code=401, detail="Sesión revocada")
+
+    # 5. Buscar el usuario para obtener el UserName real (FIX)
+    user_id = payload.get("user_id")
+    result = await db.execute(select(Usuarios).where(Usuarios.Id == int(user_id)))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+    # 6. Determinar TTL según dispositivo
+    if sesion.EsMovil:
+        access_ttl = _MOBILE_ACCESS_TTL_MINUTES
+        refresh_ttl = _MOBILE_REFRESH_TTL_MINUTES
+        cookie_max_age = _COOKIE_MAX_AGE_MOBILE
+    else:
+        access_ttl = _BROWSER_ACCESS_TTL_MINUTES
+        refresh_ttl = _BROWSER_REFRESH_TTL_MINUTES
+        cookie_max_age = _COOKIE_MAX_AGE_BROWSER
+
+    # 7. Generar NUEVOS tokens
+    try:
+        new_access = create_token(
+            subject=str(user.UserName),      # FIX: username, no ID
+            user_id=str(user.Id),
+            token_type="access",
+            expires_delta=timedelta(minutes=access_ttl),
+            session_id=session_id,
+        )
+        new_refresh = create_token(
+            subject=str(user.Id),
+            user_id=str(user.Id),
+            token_type="refresh",
+            expires_delta=timedelta(minutes=refresh_ttl),
+            session_id=session_id,
+        )
+    except AuthError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.mensaje)
+
+    # 8. Actualizar cookies
+    _set_auth_cookies(response, new_access, new_refresh, cookie_max_age)
+
+    return {"status": "success"}
 
 
 @router_sesion_protegida.get("/control-sesion")

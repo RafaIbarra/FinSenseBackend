@@ -3,11 +3,11 @@ import jwt
 from datetime import datetime, timedelta
 from Config.settings import settings
 
-@dataclass
 class AuthError(Exception):
-    status_code: int
-    mensaje: str
-
+    def __init__(self, status_code: int, mensaje: str):
+        self.status_code = status_code
+        self.mensaje = mensaje
+        super().__init__(mensaje)
 
 def validar_token(raw_token: str, secret_key: str, algoritmo: str = "HS256") -> dict:
     """
@@ -29,8 +29,7 @@ def validar_token(raw_token: str, secret_key: str, algoritmo: str = "HS256") -> 
     except Exception as e:
         raise AuthError(500, f"Error de validación: {e}")
     
-    if payload.get("type") != "access":
-        raise AuthError(401, "Token inválido: tipo de token incorrecto")
+    
 
     return payload
 

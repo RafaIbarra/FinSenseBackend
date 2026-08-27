@@ -19,7 +19,8 @@ from Apis.CategoriasGastosApi import router_categorias
 from Apis.EmpresasApi import router_empresas
 from Apis.DisponibilidadModelsApi import router_models
 from Apis.ListadosGastosApi import router_movimientos_listados
-from Common.rate_limit_middleware import default_rate_limiter
+from Apis.TestsApi import router_tests
+from Common.rate_limit_middleware import default_rate_limiter,rate_limit
 from Common.security_headers import SecurityHeadersMiddleware
 
 from fastapi.exceptions import RequestValidationError
@@ -92,6 +93,7 @@ app.include_router(router_movimientos_listados)
 app.include_router(router_categorias)
 app.include_router(router_empresas)
 app.include_router(router_models)
+app.include_router(router_tests)
 
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
@@ -130,15 +132,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
 )
 
-if settings.MODO_PRODUCCION:
-    # ⚠️ Si la app corre detrás de un proxy/load balancer que termina TLS
-    # (Nginx, Render, Railway, Cloud Run, etc.), verificar que:
-    #   - el proxy envíe el header X-Forwarded-Proto: https
-    #   - uvicorn/gunicorn esté configurado para confiar en ese header
-    #     (ej. uvicorn --proxy-headers)
-    # De lo contrario, este middleware puede generar un loop de redirects,
-    # porque va a ver siempre scheme="http" aunque el cliente use HTTPS.
-    app.add_middleware(HTTPSRedirectMiddleware)
+
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
