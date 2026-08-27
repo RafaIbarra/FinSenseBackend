@@ -190,10 +190,10 @@ async def logout(
     """Cierra la sesión actual y limpia las cookies."""
     # Obtener session_id del token si existe
     session_id = None
-    usuario_id = request.state.id_usuario
+    
     if hasattr(request.state, "session_id"):
         session_id = request.state.session_id
-    print(f'la sesion es {session_id} y el usuario es {usuario_id}')
+    
     if session_id:
         await db.execute(
             update(SesionesActivas)
