@@ -160,7 +160,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
 
         print(" --> 2. Extraer y clasificar")
         
-        resultado = await procesar_imagen_factura(imagenes_bytes, upload_file=False)
+        resultado = await procesar_imagen_factura(imagenes=imagenes_bytes, upload_file=False,time_out_model=180) # NO SE PASA EL VALOR PARA temp_url YA QUE ES IRRELEVANTE EN EL CONTEXTO
 
         if not resultado.procesamiento_correcto:
             await marcar_estado(

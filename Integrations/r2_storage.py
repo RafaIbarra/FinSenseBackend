@@ -28,12 +28,14 @@ class R2Storage:
         # Nombres de buckets (desde settings, deben existir en R2)
         self.bucket_gastos = getattr(settings, 'R2_BUCKET_GASTOS', '')
         self.bucket_empresas = getattr(settings, 'R2_BUCKET_EMPRESAS', '')
+        self.bucket_temporales = getattr(settings, 'R2_BUCKET_TEMPORALES', '')
         
 
         # URLs públicas por bucket (dominios personalizados conectados en R2)
         self.public_urls = {
             self.bucket_gastos: getattr(settings, 'R2_PUBLIC_URL_GASTOS', ''),
             self.bucket_empresas: getattr(settings, 'R2_PUBLIC_URL_EMPRESAS', ''),
+            self.bucket_temporales: getattr(settings, 'R2_PUBLIC_URL_TEMPORALES', ''),
             
         }
 
@@ -62,6 +64,16 @@ class R2Storage:
         return self._delete_image(self.bucket_gastos, image_url)
 
     # ───────────────────────────────────────────────
+    # ESCANEADAS
+    # ───────────────────────────────────────────────
+
+    def upload_temp_image(self, file_bytes: bytes, file_name: str):
+        return self._upload_image(self.bucket_temporales, file_bytes, file_name)
+
+    def delete_temp_image(self, image_url: str):
+        return self._delete_image(self.bucket_temporales, image_url)
+
+    # ───────────────────────────────────────────────
     # INGRESOS
     # ───────────────────────────────────────────────
 
@@ -82,6 +94,109 @@ class R2Storage:
         return self._delete_image(self.bucket_empresas, image_url)
 
     # ───────────────────────────────────────────────
+    # COPIAR ENTRE BUCKETS
+    # ───────────────────────────────────────────────
+
+    def copy_between_buckets(self, source_url: str, source_bucket: str, dest_bucket: str, new_file_name: str = None):
+        """
+        Copia un objeto de un bucket a otro.
+        Si new_file_name es None, mantiene el mismo path.
+        Retorna la URL pública del objeto copiado.
+        """
+        try:
+            source_path = self._extraer_path_de_url(source_url, source_bucket)
+            if not source_path:
+                return {
+                    'success': False,
+                    'url': '',
+                    'path': '',
+                    'message': f'No se pudo extraer path de la URL: {source_url}'
+                }
+
+            dest_path = new_file_name if new_file_name else source_path
+
+            copy_source = {
+                'Bucket': source_bucket,
+                'Key': source_path
+            }
+
+            self.client.copy_object(
+                CopySource=copy_source,
+                Bucket=dest_bucket,
+                Key=dest_path
+            )
+
+            url = self._construir_url_publica(dest_bucket, dest_path)
+
+            return {
+                'success': True,
+                'url': url,
+                'path': dest_path,
+                'message': 'OK'
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'url': '',
+                'path': '',
+                'message': str(e)
+            }
+
+    def move_between_buckets(self, source_url: str, source_bucket: str, dest_bucket: str, new_file_name: str = None):
+        """
+        Mueve un objeto de un bucket a otro (copy + delete del origen).
+        Si new_file_name es None, mantiene el mismo path.
+        Retorna la URL pública del objeto en el destino.
+        """
+        try:
+            # 1. COPY
+            source_path = self._extraer_path_de_url(source_url, source_bucket)
+            if not source_path:
+                return {
+                    'success': False,
+                    'url': '',
+                    'path': '',
+                    'message': f'No se pudo extraer path de la URL: {source_url}'
+                }
+
+            dest_path = new_file_name if new_file_name else source_path
+
+            self.client.copy_object(
+                CopySource={'Bucket': source_bucket, 'Key': source_path},
+                Bucket=dest_bucket,
+                Key=dest_path
+            )
+
+            url_destino = self._construir_url_publica(dest_bucket, dest_path)
+
+            # 2. DELETE (best effort: si falla, logueamos pero no invalidamos el éxito)
+            try:
+                self.client.delete_object(Bucket=source_bucket, Key=source_path)
+            except Exception as del_err:
+                # La imagen ya está en el destino; el delete es limpieza
+                return {
+                    'success': True,
+                    'url': url_destino,
+                    'path': dest_path,
+                    'message': f'Copia OK, pero falló el delete del origen: {str(del_err)}'
+                }
+
+            return {
+                'success': True,
+                'url': url_destino,
+                'path': dest_path,
+                'message': 'OK'
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'url': '',
+                'path': '',
+                'message': str(e)
+            }
+    # ───────────────────────────────────────────────
     # MÉTODOS INTERNOS
     # ───────────────────────────────────────────────
 
@@ -92,8 +207,9 @@ class R2Storage:
         ext = os.path.splitext(file_name)[1] or '.jpg'
 
         if settings.DEBUG:
-            timestamp = f'FIND_{timestamp}'
-
+            timestamp = f'FIN_SENSE_DEV_{timestamp}'
+        else:
+            timestamp = f'FIN_SENSE_PRO_{timestamp}'
         return f"{timestamp}_{unique_id}{ext}"
 
     def _upload_image(self, bucket: str, file_bytes: bytes, file_name: str):

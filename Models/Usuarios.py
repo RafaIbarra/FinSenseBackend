@@ -32,3 +32,6 @@ class Usuarios(Base):
         back_populates="usuario",
         cascade="all, delete-orphan",
     )
+
+    urls_imagenes_temporales = relationship("UrlsImagenesTemporales",back_populates="usuario",
+            cascade="all, delete-orphan",)

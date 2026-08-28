@@ -1,15 +1,13 @@
-from sqlalchemy import select
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import  List,Tuple
 from Models.ImagenesPendientes import ImagenesPendientes
-from Models.MovimientosGastos import MovimientosGastos
-from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
-from Utils.img_works import registrar_imagenes
+
 from Integrations.r2_storage import *
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 from Utils.img_works import registrar_lista_imagenes
-from sqlalchemy.orm import selectinload
+
 
 
 
@@ -36,7 +34,7 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
         if imagen_2:
             imagenes_para_subir.append((imagen_2, filename_2))
         
-        data_img=await registrar_lista_imagenes(imagenes_para_subir)
+        data_img=await registrar_lista_imagenes(imagenes=imagenes_para_subir,temp_url=False)
         if not data_img.success:
 
             return RespuestaFuncion(success_registro=False, mensaje=data_img.mensaje_error)

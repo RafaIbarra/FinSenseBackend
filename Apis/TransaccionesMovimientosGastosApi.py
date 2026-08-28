@@ -5,7 +5,7 @@ from fastapi import Depends, Form, HTTPException, Request,status,File, UploadFil
 from sqlalchemy.ext.asyncio import AsyncSession
 from Common.routers_factory import generar_router
 from Config.settings import get_db
-from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
+
 
 
 from Schemas.Respuestas import RespuestaProcesamientoImgFacturas
@@ -16,8 +16,10 @@ from Repositories.categorias_gastos_repo import obtener_o_crear_categoria
 from Repositories.conceptos_gastos_repo import obtener_o_crear_conceptos
 from Repositories.etiquetas_gastos_repo import obtener_o_crear_etiquetas
 from Repositories.imagenes_pendientes_repo import registrar_imagenes_pendientes
+from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
+from Repositories.urls_imagenes_temporales_repo import registrar_urls_temporales
 from Services.img_factura_services import procesar_imagen_factura
-
+from Models.MovimientosGastos import TipoRegistroEnum
 
 from Integrations.r2_storage import *
 
@@ -43,10 +45,11 @@ async def eliminar(
 
 @router_movimientos.post("/extraer-clasificar")
 async def extraer_clasificar(
+    request: Request,
     imagenes: List[UploadFile] = File(..., description="1 o 2 imágenes de la factura (jpg, png, webp)"),
     db: AsyncSession = Depends(get_db),
 ):
-    
+    id_usuario = int(request.state.id_usuario)
     if len(imagenes) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -77,7 +80,7 @@ async def extraer_clasificar(
             nombre = img.filename or "factura.jpg"
             imagenes_procesadas.append((contenido, mime, nombre))
         
-        respuesta = await procesar_imagen_factura(imagenes_procesadas, upload_file=True)
+        respuesta = await procesar_imagen_factura(imagenes=imagenes_procesadas,upload_file=True, temp_url=True,time_out_model=180)
         
         
         if not respuesta.procesamiento_correcto:
@@ -88,15 +91,25 @@ async def extraer_clasificar(
                 detail={
             "solicita_envio_pendiente": respuesta.solicita_envio_pendiente,
             "mensaje_error": respuesta.mensaje_error,
-        }
+                 }
             )
-
         
-        
+        lista_urls=respuesta.imagenes.urls_img
+        registro_urls_temporales=await registrar_urls_temporales(db,id_usuario,lista_urls)
+        if not registro_urls_temporales.success_registro:
+            raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={
+                        "solicita_envio_pendiente":True,
+                        "mensaje_error": registro_urls_temporales.mensaje,
+                             }
+                        )
         data_respuesta={
             "factura": respuesta.factura,
             "clasificacion": respuesta.clasificacion,
             "imagenes": respuesta.imagenes,
+            "tipo_registro":TipoRegistroEnum.Asistido
+            
         }
         return data_respuesta
     except HTTPException:
@@ -173,6 +186,7 @@ async def registro(
 
     #LISTADO DE URLS DE IMAGENES
     imagenes=body.imagenes.urls_img
+    type_url=body.imagenes.tipo_url
     try:
         #PAYLOAD PARA EL REGISTRO
         movimiento_data = {
@@ -185,6 +199,7 @@ async def registro(
                     "id_categoria": id_categoria,
                     "nro_factura": factura.numero_factura,
                     "imagenes": imagenes,
+                    "type_url":type_url,
                     "tipo_registro":body.tipo_registro ,
                     "fecha_gasto": date.fromisoformat(factura.fecha),
                     "conceptos":ids_conceptos,

@@ -10,7 +10,8 @@ from .MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
 from .MovimientosGastosConceptos import MovimientosGastosConceptos
 from .ImagenesPendientes import ImagenesPendientes
 from .ErroresModelos import ErroresModelos
+from .UrlsImagenesTemporales import UrlsImagenesTemporales
 
 __all__ = ["Usuarios", "SesionesActivas", "Empresas", "CategoriasGastos", "EtiquetasGastos", "ConceptosGastos", 
            "MovimientosGastos", "MovimientosGastosImagenes", "MovimientosGastosEtiquetas", "MovimientosGastosConceptos",
-           "ImagenesPendientes","ErroresModelos"]
+           "ImagenesPendientes","ErroresModelos","UrlsImagenesTemporales"]

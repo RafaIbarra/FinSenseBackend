@@ -46,6 +46,10 @@ class Settings(BaseSettings):
 
     R2_BUCKET_EMPRESAS:str
     R2_PUBLIC_URL_EMPRESAS:str
+
+    R2_BUCKET_TEMPORALES:str
+    R2_PUBLIC_URL_TEMPORALES :str
+
     
     DIR_EMAIL:str
     PASS_EMAIL:str

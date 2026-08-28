@@ -8,7 +8,7 @@ from Schemas.integrations_schemas import FacturaExtraida,ClasificacionGasto
 from Utils.img_works import registrar_lista_imagenes
 from DataTest.data import TESTS_DATA
 
-async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_file:bool=True):
+async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_file:bool=True,temp_url:bool=False,time_out_model:int=120):
     
     factura_ocr: Optional[FacturaExtraida] = None
     clasificacion_groq: Optional[ClasificacionGasto] = None
@@ -26,7 +26,7 @@ async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_
                 imagen_2=imagen_2,
                 mime_type_1=mime_type_1,
                 mime_type_2=mime_type_2,
-                time_out=180,
+                time_out=time_out_model,
             )
     # factura_ocr=FacturaExtraida(**TESTS_DATA['factura'])
     
@@ -42,17 +42,16 @@ async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_
                     "rubro_empresa": factura_ocr.rubro,
                     "conceptos": factura_ocr.detalle,
                 },
-                time_out=180,
+                time_out=time_out_model,
             )
     # clasificacion_groq=ClasificacionGasto(**TESTS_DATA['clasificacion'])
+    data_img=None
     if upload_file:
         imagenes_para_subir = [(imagen_1, filename_1),]
         if imagen_2:
             imagenes_para_subir.append((imagen_2, filename_2))
-
-        data_img=await registrar_lista_imagenes(imagenes_para_subir)
-    else:
-        data_img=None
+        data_img=await registrar_lista_imagenes(imagenes_para_subir,temp_url)
+    
     # data_img=RespuestaImagenesSubidas(**TESTS_DATA['imagenes'])
     
     

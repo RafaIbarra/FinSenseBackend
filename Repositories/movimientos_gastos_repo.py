@@ -8,6 +8,7 @@ from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
+from Repositories.urls_imagenes_temporales_repo import procesar_urls_temporales
 from Integrations.r2_storage import *
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
@@ -47,6 +48,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
 
         movimiento_id = movimiento.get("id", 0) or 0
         imagenes = movimiento.get("imagenes", [])
+        type_url = movimiento.get("type_url", "")
         categoria_id = movimiento.get("id_categoria")
         usuario_id = movimiento.get("user_id")
 
@@ -166,6 +168,26 @@ async def registrar(db: AsyncSession, movimiento: dict):
         # con la siguiente, sin abortar nada).
         if imagenes:
             imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
+            type_url_valor = getattr(type_url, 'value', type_url)
+            # Si vienen del bucket de escaneadas, las copiamos a gastos antes de registrar
+            
+            if type_url_valor  == "Temporal":
+                
+                urls_procesadas = []
+                urls_eliminadas = []
+                for img_url in imagenes[:2]:
+                    resultado = r2_storage.move_between_buckets(
+                        source_url=img_url,
+                        source_bucket=r2_storage.bucket_temporales,
+                        dest_bucket=r2_storage.bucket_gastos,
+                    )
+                    if resultado.get("success"):
+                        urls_procesadas.append(resultado.get("url"))
+                        urls_eliminadas.append(img_url)
+                if urls_eliminadas:
+                   await procesar_urls_temporales(db,usuario_id,urls_eliminadas)
+                imagenes = urls_procesadas
+
             for index, img in enumerate(imagenes[:2], start=1):
                 try:
                     imagen = MovimientosGastosImagenes(
