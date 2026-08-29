@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     R2_BUCKET_TEMPORALES:str
     R2_PUBLIC_URL_TEMPORALES :str
 
-    
+    MAIL_ADMIN:str
     DIR_EMAIL:str
     PASS_EMAIL:str
     ALLOWED_ORIGINS:str

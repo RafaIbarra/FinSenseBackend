@@ -56,4 +56,5 @@ async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_
     
     
     return RespuestaProcesamientoImgFacturas(factura=factura_ocr,clasificacion=clasificacion_groq,imagenes=data_img)
+
                     

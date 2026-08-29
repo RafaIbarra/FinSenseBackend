@@ -19,9 +19,13 @@ class FacturaExtraida(BaseModel):
     mensaje_error:str=""
     data_correct: Optional[bool] = True
 
+class EtiquetaConConceptos(BaseModel):
+    etiqueta: str
+    conceptos: List[str] = [] 
+ 
+ 
 class ClasificacionGasto(BaseModel):
     categoria: str
-    etiquetas: List[str]
+    etiquetas: List[EtiquetaConConceptos] = [] 
     modelo_clasificador: str
-
 

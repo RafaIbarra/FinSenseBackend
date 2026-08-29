@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        td.url {
+            word-break: break-word;
+        }
+        .footer {
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>URLs Temporales Eliminadas</h2>
+        </div>
+        <div class="content">
+            <p>Se han eliminado las siguientes URLs temporales:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre y Apellido Usuario</th>
+                        <th>URL</th>
+                        <th>Fecha de Registro</th>
+                        <th>Fecha de Eliminaci&oacute;n</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in resumen %}
+                    <tr>
+                        <td>{{ item["Nombre y Apellido Usuario"] }}</td>
+                        <td class="url">{{ item["Url"] }}</td>
+                        <td>{{ item["FechaRegistro"] }}</td>
+                        <td>{{ item["FechaEliminacion"] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="footer">
+            Este correo fue generado autom&aacute;ticamente por el sistema.
+        </div>
+    </div>
+</body>
+</html>

@@ -67,8 +67,6 @@ async def registrar(db: AsyncSession, movimiento: dict):
 
         nro_factura = movimiento.get("nro_factura")
 
-    
-
         # Un mismo número de factura no puede repetirse para el mismo usuario y empresa,
         # excepto cuando la empresa tiene RUC "0-0" (empresa genérica/sin RUC).
         if empresa.Ruc != "0-0" and nro_factura:
@@ -111,7 +109,6 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 registro.ModeloClasificador = movimiento["model_clasificador"]
             registro.EmpresaId = empresa.Id
 
-            # Por ahora no hay lógica para imagenes cuando viene vacio
             await db.commit()
             await db.refresh(registro)
             return RespuestaFuncion()
@@ -130,19 +127,21 @@ async def registrar(db: AsyncSession, movimiento: dict):
             ModeloClasificador= movimiento.get("model_clasificador",'') 
         )
 
-        
         try:
             db.add(nuevo_movimiento)
             await db.flush()  # asigna nuevo_movimiento.Id sin comitear
 
+            # ── CONCEPTOS CON ETIQUETA ──
             if movimiento.get("conceptos", []):
                 db.add_all([
                     MovimientosGastosConceptos(
                         MovimientoGastoId=nuevo_movimiento.Id,
-                        ConceptoId=concepto_id,
+                        ConceptoId=concepto["id_concepto"],
+                        EtiquetaId=concepto.get("id_etiqueta"),
                     )
-                    for concepto_id in movimiento["conceptos"]
+                    for concepto in movimiento["conceptos"]
                 ])
+
             if movimiento.get("etiquetas", []):
                 db.add_all([
                     MovimientosGastosEtiquetas(
@@ -161,18 +160,12 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 mensaje=f"No se pudo registrar el movimiento: {limpiar_mensaje_error_bd(str(exc))}",
             )
 
-        # Las imagenes se procesan y comitean en su propia transaccion, DESPUÉS de que
-        # movimiento+conceptos+etiquetas ya quedaron confirmados. Un error acá NO debe
-        # afectar a lo anterior, y de hecho cada imagen ya maneja su propio try/except
-        # individual (si falla la subida a R2, se guarda con ErrorUploadImg y se sigue
-        # con la siguiente, sin abortar nada).
+        # Las imagenes se procesan y comitean en su propia transaccion
         if imagenes:
             imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
             type_url_valor = getattr(type_url, 'value', type_url)
-            # Si vienen del bucket de escaneadas, las copiamos a gastos antes de registrar
             
-            if type_url_valor  == "Temporal":
-                
+            if type_url_valor == "Temporal":
                 urls_procesadas = []
                 urls_eliminadas = []
                 for img_url in imagenes[:2]:
@@ -185,7 +178,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
                         urls_procesadas.append(resultado.get("url"))
                         urls_eliminadas.append(img_url)
                 if urls_eliminadas:
-                   await procesar_urls_temporales(db,usuario_id,urls_eliminadas)
+                   await procesar_urls_temporales(db, usuario_id, urls_eliminadas)
                 imagenes = urls_procesadas
 
             for index, img in enumerate(imagenes[:2], start=1):
@@ -197,7 +190,6 @@ async def registrar(db: AsyncSession, movimiento: dict):
                         ErrorUploadImg=""
                     )
                     db.add(imagen)
-
                 except Exception as exc:
                     print(f'Error procesando imagen {index}: {exc}')
 
@@ -207,9 +199,12 @@ async def registrar(db: AsyncSession, movimiento: dict):
 
     except Exception as e:
         await db.rollback()
+        print(limpiar_mensaje_error_bd(str(e)))
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
 
 
+
+    
 async def eliminar_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
     if not movimiento_id:
         return RespuestaFuncion(success_registro=False, mensaje="El movimiento es obligatorio")

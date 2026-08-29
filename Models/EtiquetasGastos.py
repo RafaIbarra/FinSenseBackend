@@ -16,3 +16,9 @@ class EtiquetasGastos(Base):
 		back_populates="etiqueta",
 		cascade="all, delete-orphan",
 	)
+
+	movimientos_gastos_conceptos = relationship(
+		"MovimientosGastosConceptos",
+		back_populates="etiqueta",
+		cascade="all, delete-orphan",
+	)

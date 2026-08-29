@@ -138,6 +138,9 @@ async def movimientos_usuario_gastos(db: AsyncSession, id_usuario: int):
             selectinload(MovimientosGastos.conceptos).selectinload(
                 MovimientosGastosConceptos.concepto
             ),
+            selectinload(MovimientosGastos.conceptos).selectinload(
+                MovimientosGastosConceptos.etiqueta
+            ),
             selectinload(MovimientosGastos.imagenes),
             selectinload(MovimientosGastos.imagenes_pendientes),
         )
@@ -198,6 +201,10 @@ async def movimientos_usuario_gastos(db: AsyncSession, id_usuario: int):
                 {
                     "idconcepto": enlace.ConceptoId,
                     "nombre": enlace.concepto.NombreConcepto,
+                    "etiqueta": {
+                        "id": enlace.EtiquetaId,
+                        "nombre": enlace.etiqueta.NombreEtiqueta,
+                    } if enlace.etiqueta else None,
                 }
                 for enlace in movimiento.conceptos
             ],

@@ -151,16 +151,23 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
 
     print(f"[TAREA {codigo_tarea}] INICIANDO PROCESAMIENTO]")
 
+    paso_actual = ""
+
     try:
-        print(" --> 1. Descargar imágenes")
+        paso_actual = "1. Descargar imágenes"
+        print(f" --> {paso_actual}")
         imagenes_bytes: List[Tuple[bytes, str, str]] = []
         for url in urls:
             img = await descargar_imagen(url)
             imagenes_bytes.append(img)
 
-        print(" --> 2. Extraer y clasificar")
-        
-        resultado = await procesar_imagen_factura(imagenes=imagenes_bytes, upload_file=False,time_out_model=180) # NO SE PASA EL VALOR PARA temp_url YA QUE ES IRRELEVANTE EN EL CONTEXTO
+        paso_actual = "2. Extraer y clasificar"
+        print(f" --> {paso_actual}")
+        resultado = await procesar_imagen_factura(
+            imagenes=imagenes_bytes,
+            upload_file=False,
+            time_out_model=180,
+        )
 
         if not resultado.procesamiento_correcto:
             await marcar_estado(
@@ -179,14 +186,17 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             print(f"[TAREA {codigo_tarea}] Datos incorrectos: {factura.mensaje_error}")
             return 0
 
-        print(" --> 3. Registro completo")
-        ids_conceptos = []
-        if factura.detalle:
-            registros_conceptos = await obtener_o_crear_conceptos(db, factura.detalle)
-            if not registros_conceptos.success_registro:
-                raise RuntimeError(f"Conceptos: {registros_conceptos.mensaje}")
-            ids_conceptos = registros_conceptos.data_registro
+        paso_actual = "3. Registro completo"
+        print(f" --> {paso_actual}")
 
+        # ── CONCEPTOS ──
+        registros_conceptos = await obtener_o_crear_conceptos(db, factura.detalle)
+        if not registros_conceptos.success_registro:
+            raise RuntimeError(f"Conceptos: {registros_conceptos.mensaje}")
+        # data_registro = [1, 2, 3, ...] → {"CHIPA MESTIZO X K": 1, ...}
+        mapa_conceptos = dict(zip(factura.detalle, registros_conceptos.data_registro))
+
+        # ── EMPRESA ──
         registro_empresa = await obtener_o_crear_empresa(
             db,
             nombre=factura.empresa or "S/N",
@@ -194,25 +204,48 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             rubro=factura.rubro or "",
         )
         if not registro_empresa.success_registro:
-            print(f" ❌ Error registro empresa {registro_empresa.mensaje}")
             raise RuntimeError(f"Empresa: {registro_empresa.mensaje}")
 
-        ids_etiquetas = []
-        if clasificacion.etiquetas:
-            registros_etiquetas = await obtener_o_crear_etiquetas(db, clasificacion.etiquetas)
-            if not registros_etiquetas.success_registro:
-                print(f" ❌ Error registro Etiquetas {registros_etiquetas.mensaje}")
-                raise RuntimeError(f"Etiquetas: {registros_etiquetas.mensaje}")
-            ids_etiquetas = registros_etiquetas.data_registro
+        # ── ETIQUETAS ──
+        nombres_etiquetas = [e.etiqueta for e in clasificacion.etiquetas]
+        registros_etiquetas = await obtener_o_crear_etiquetas(db, nombres_etiquetas)
+        if not registros_etiquetas.success_registro:
+            raise RuntimeError(f"Etiquetas: {registros_etiquetas.mensaje}")
+        # data_registro = [92, 110] → {"Alimentacion": 92, "Envases": 110}
+        mapa_etiquetas = dict(zip(nombres_etiquetas, registros_etiquetas.data_registro))
 
-        registro_categoria = await obtener_o_crear_categoria(db, clasificacion.categoria)
+        # ── MAPEO CONCEPTO → ETIQUETA ──
+        concepto_a_etiqueta: dict[str, int | None] = {}
+        for etiqueta_obj in clasificacion.etiquetas:
+            id_etiqueta = mapa_etiquetas.get(etiqueta_obj.etiqueta)
+            for nombre_concepto in etiqueta_obj.conceptos:
+                concepto_a_etiqueta[nombre_concepto] = id_etiqueta
+
+        # ── LISTA FINAL DE CONCEPTOS CON SUS ETIQUETAS ──
+        conceptos_con_etiquetas = [
+            {
+                "id_concepto": id_concepto,
+                "id_etiqueta": concepto_a_etiqueta.get(nombre_concepto),
+            }
+            for nombre_concepto, id_concepto in mapa_conceptos.items()
+        ]
+
+        ids_etiquetas = list(mapa_etiquetas.values())
+
+        # ── CATEGORÍA ──
+        registro_categoria = await obtener_o_crear_categoria(
+            db, clasificacion.categoria
+        )
         if not registro_categoria.success_registro:
-            print(f" ❌ Error registro Categoria {registro_categoria.mensaje}")
             raise RuntimeError(f"Categoria: {registro_categoria.mensaje}")
         id_categoria = registro_categoria.data_registro.Id
 
         try:
-            fecha_gasto = date.fromisoformat(factura.fecha) if factura.fecha else date.today()
+            fecha_gasto = (
+                date.fromisoformat(factura.fecha)
+                if factura.fecha
+                else date.today()
+            )
         except ValueError:
             fecha_gasto = date.today()
 
@@ -228,7 +261,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             "imagenes": urls,
             "tipo_registro": TipoRegistroEnum.Automatico,
             "fecha_gasto": fecha_gasto,
-            "conceptos": ids_conceptos,
+            "conceptos": conceptos_con_etiquetas,   # ← NUEVO FORMATO
             "etiquetas": ids_etiquetas,
             "model_img": factura.Model,
             "model_clasificador": clasificacion.modelo_clasificador,
@@ -236,7 +269,6 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
 
         registro_gasto = await registrar(db, movimiento_data)
         if not registro_gasto.success_registro:
-            print(f" ❌ Error registro movimiento {registro_gasto.mensaje}")
             raise RuntimeError(f"Movimiento: {registro_gasto.mensaje}")
 
         id_reg = registro_gasto.data_registro.Id
@@ -246,10 +278,15 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
         return id_reg
 
     except Exception as exc:
-        await marcar_estado(db, ids_pendientes, True, str(exc), 0, fecha_procesado)
-        print(f"[TAREA {codigo_tarea}] Error: {exc}")
-        raise
+        import traceback
 
+        print(f"[TAREA {codigo_tarea}] ❌ Error en --> {paso_actual}: {exc}")
+        traceback.print_exc()
+
+        await marcar_estado(
+            db, ids_pendientes, True, str(exc), 0, fecha_procesado
+        )
+        raise
 
 async def main():
     # resumen = DATA_RESUMEN

@@ -11,9 +11,9 @@ client = AsyncGroq(api_key=GROQ_API_KEY)
 MODELS_FALLBACK = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
 
 MODEL_KWARGS = {
-    "llama-3.1-8b-instant": {"max_tokens": 150},
-    "openai/gpt-oss-20b": {"max_tokens": 600, "reasoning_effort": "low"},
-    "qwen/qwen3.6-27b": {"max_tokens": 600, "reasoning_effort": "low"},
+    "llama-3.1-8b-instant": {"max_tokens": 300},
+    "openai/gpt-oss-20b": {"max_tokens": 600, "reasoning_effort": "none"},
+    "qwen/qwen3.6-27b": {"max_tokens": 600, "reasoning_effort": "none"},
 }
 DEFAULT_MODEL_KWARGS = {"max_tokens": 300}
 
@@ -82,19 +82,19 @@ Tu trabajo es devolver DOS cosas:
      * Restaurante/Gastronomía, Tecnología, Ferretería, Indumentaria, Salud, Educación, etc. son
        categorías válidas si el nombre o info de la empresa lo sugiere claramente.
 
-2) "etiquetas": entre 1 y {MAX_ETIQUETAS} etiquetas que agrupen los CONCEPTOS de la factura (los ítems comprados).
+2) "etiquetas": entre 1 y {MAX_ETIQUETAS} etiquetas que agrupen los CONCEPTOS de la factura (los ítems comprados),
+   junto con los conceptos que corresponden a cada etiqueta.
    - Analizá los conceptos y agrupalos por tipo, asignando etiquetas cortas y generales (no una por ítem).
-   - Si "conceptos" viene vacío, devolvé exactamente {json.dumps(ETIQUETAS_DEFAULT, ensure_ascii=False)}.
-   - Ejemplos de referencia (son solo ejemplos, podés usar otras etiquetas si corresponde):
-     * Alimentacion: carnes, lácteos, huevos, verduras, almacén
-     * Bebidas: gaseosas, cervezas, vinos, agua
-     * Limpieza: detergentes, lavandina, artículos de limpieza del hogar
-     * Higiene Personal: shampoo, jabón, pasta dental
-     * Utencillos: bandejas, cuchillos, cucharas, ollas
-     * Electrodomesticos, Vestimenta, Papeleria, Mascotas, Ferreteria, Farmacia, etc.
+   - Cada concepto debe quedar asignado a UNA sola etiqueta (no lo repitas en más de una).
+   - Las etiquetas deben ser coherentes con la "categoria" que asignaste a la empresa: un concepto solo puede
+     recibir una etiqueta que tenga sentido dentro del rubro de esa empresa. Por ejemplo, si la categoría es
+     "Supermercados", no asignes una etiqueta como "Carburantes", porque un supermercado no vende combustible;
+     en ese caso, revisá el concepto y usá una etiqueta que sí sea razonable para ese rubro (o una etiqueta
+     genérica si no encaja en ninguna categoría típica del rubro).
+   - Si "conceptos" viene vacío, devolvé exactamente [{{"etiqueta": "{ETIQUETAS_DEFAULT[0]}", "conceptos": []}}].
 
 Responde ÚNICAMENTE con un JSON válido en este formato exacto, sin explicaciones ni markdown:
-{{"categoria": "NombreCategoria", "etiquetas": ["Etiqueta1", "Etiqueta2"]}}
+{{"categoria": "NombreCategoria", "etiquetas": [{{"etiqueta": "Etiqueta1", "conceptos": ["Concepto1", "Concepto2"]}}, {{"etiqueta": "Etiqueta2", "conceptos": ["Concepto3"]}}]}}
 """
 
 def _canonicalizar(texto: str, mapeo: dict) -> str:
@@ -151,21 +151,34 @@ def _normalizar_respuesta(data: dict, modelo: str) -> ClasificacionGasto:
     if not isinstance(etiquetas_raw, list):
         etiquetas_raw = []
 
-    # Normalizar cada etiqueta
-    etiquetas_normalizadas = []
-    vistas = set()
-    for e in etiquetas_raw:
-        etiqueta_limpia = str(e).strip()
+    # Normalizar cada etiqueta, agrupando sus conceptos y evitando duplicados tras la canonicalización
+    etiquetas_normalizadas: list[dict] = []
+    indice_por_canon: dict[str, int] = {}
+    for item in etiquetas_raw:
+        if isinstance(item, dict):
+            etiqueta_limpia = str(item.get("etiqueta") or "").strip()
+            conceptos_item = item.get("conceptos")
+            if not isinstance(conceptos_item, list):
+                conceptos_item = []
+            conceptos_item = [str(c).strip() for c in conceptos_item if str(c).strip()]
+        else:
+            # Compatibilidad por si el modelo devuelve una etiqueta suelta como string
+            etiqueta_limpia = str(item).strip()
+            conceptos_item = []
+
         if not etiqueta_limpia:
             continue
+
         canon = _canonicalizar(etiqueta_limpia, ETIQUETA_SYNONYMS)
-        # Evitar duplicados exactos tras la normalización
-        if canon.lower() not in vistas:
-            vistas.add(canon.lower())
-            etiquetas_normalizadas.append(canon)
+        clave = canon.lower()
+        if clave in indice_por_canon:
+            etiquetas_normalizadas[indice_por_canon[clave]]["conceptos"].extend(conceptos_item)
+        else:
+            indice_por_canon[clave] = len(etiquetas_normalizadas)
+            etiquetas_normalizadas.append({"etiqueta": canon, "conceptos": conceptos_item})
 
     if not etiquetas_normalizadas:
-        etiquetas = list(ETIQUETAS_DEFAULT)
+        etiquetas = [{"etiqueta": ETIQUETAS_DEFAULT[0], "conceptos": []}]
     else:
         etiquetas = etiquetas_normalizadas[:MAX_ETIQUETAS]
 

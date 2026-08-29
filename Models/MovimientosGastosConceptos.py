@@ -16,6 +16,8 @@ class MovimientosGastosConceptos(Base):
 		"MovimientoGastoId", Integer, ForeignKey("MovimientosGastos.Id"), nullable=False, index=True
 	)
 	ConceptoId = Column("ConceptoId", Integer, ForeignKey("ConceptosGastos.Id"), nullable=False, index=True)
+	EtiquetaId = Column("EtiquetaId", Integer, ForeignKey("EtiquetasGastos.Id"), nullable=True, index=True)
 
 	movimiento_gasto = relationship("MovimientosGastos", back_populates="conceptos")
 	concepto = relationship("ConceptosGastos", back_populates="movimientos_gastos_conceptos")
+	etiqueta = relationship("EtiquetasGastos", back_populates="movimientos_gastos_conceptos")

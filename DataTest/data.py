@@ -100,3 +100,58 @@ DATA_RESUMEN={
     }
   ]
 }
+
+DATA_NEW_FORMAT={
+    "factura": {
+        "empresa": "CADENA REAL S.A",
+        "rubro": "",
+        "ruc_empresa": "80016951-4",
+        "fecha": "2026-08-21",
+        "numero_factura": "011-011-0225206",
+        "total": 48726.0,
+        "iva_diez": 4430.0,
+        "iva_cinco": 0.0,
+        "fiabilidad": "Excelente",
+        "detalle": [
+            "CHIPA MESTIZO X K",
+            "SAND. LACTEADO IN",
+            "ROSQUITA REAL X K",
+            "GALLETITAS HOGARE",
+            "BOLSA CAMISILLA 4"
+        ],
+        "Model": "gemini-3.5-flash",
+        "success_registro": "true",
+        "mensaje_error": "",
+        "data_correct": "true"
+    },
+    "clasificacion": {
+        "categoria": "Supermercados",
+        "etiquetas": [
+            {
+                "etiqueta": "Alimentacion",
+                "conceptos": [
+                    "CHIPA MESTIZO X K",
+                    "SAND. LACTEADO IN",
+                    "ROSQUITA REAL X K",
+                    "GALLETITAS HOGARE"
+                ]
+            },
+            {
+                "etiqueta": "Envases",
+                "conceptos": [
+                    "BOLSA CAMISILLA 4"
+                ]
+            }
+        ],
+        "modelo_clasificador": "qwen/qwen3.6-27b"
+    },
+    "imagenes": {
+        "urls_img": [
+            "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260828_210852_b63fc61f.jpeg"
+        ],
+        "success": "true",
+        "mensaje_error": "",
+        "tipo_url": "Temporal"
+    },
+    "tipo_registro": "Asistido"
+}
