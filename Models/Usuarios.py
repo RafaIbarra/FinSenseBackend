@@ -33,6 +33,12 @@ class Usuarios(Base):
         cascade="all, delete-orphan",
     )
 
+    imagenes_reportadas = relationship(
+        "ImagenesReportadas",
+        back_populates="usuario",
+        cascade="all, delete-orphan",
+    )
+
     urls_imagenes_temporales = relationship("UrlsImagenesTemporales",back_populates="usuario",
             cascade="all, delete-orphan",)
 

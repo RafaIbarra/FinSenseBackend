@@ -9,10 +9,11 @@ from .MovimientosGastosImagenes import MovimientosGastosImagenes
 from .MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
 from .MovimientosGastosConceptos import MovimientosGastosConceptos
 from .ImagenesPendientes import ImagenesPendientes
+from .ImagenesReportadas import ImagenesReportadas
 from .ErroresModelos import ErroresModelos
 from .UrlsImagenesTemporales import UrlsImagenesTemporales
 from .EnvioCorreos import EnvioCorreos
 
 __all__ = ["Usuarios", "SesionesActivas", "Empresas", "CategoriasGastos", "EtiquetasGastos", "ConceptosGastos", 
            "MovimientosGastos", "MovimientosGastosImagenes", "MovimientosGastosEtiquetas", "MovimientosGastosConceptos",
-           "ImagenesPendientes","ErroresModelos","UrlsImagenesTemporales","EnvioCorreos"]
+           "ImagenesPendientes", "ImagenesReportadas", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos"]
