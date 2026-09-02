@@ -1,9 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from Models.CategoriasGastos import CategoriasGastos
 from Models.Empresas import Empresas
+from Models.ImagenesPendientes import ImagenesPendientes
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
@@ -41,7 +42,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
             return RespuestaFuncion(success_registro=False, mensaje="El RUC de la empresa es obligatorio")
 
         empresa_result = await db.execute(select(Empresas).where(Empresas.Ruc == ruc))
-        
+
         empresa = empresa_result.scalars().first()
         if not empresa:
             return RespuestaFuncion(success_registro=False, mensaje=f"Empresa con RUC {ruc} no encontrada")
@@ -58,12 +59,11 @@ async def registrar(db: AsyncSession, movimiento: dict):
         categoria_result = await db.execute(
             select(CategoriasGastos).where(
                 CategoriasGastos.Id == categoria_id,
-                
             )
         )
         categoria = categoria_result.scalars().first()
         if not categoria:
-            return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada para el usuario")
+            return RespuestaFuncion(success_registro=False, mensaje=f"Categoría con id {categoria_id} no encontrada")
 
         nro_factura = movimiento.get("nro_factura")
 
@@ -86,123 +86,176 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 )
 
         if movimiento_id > 0:
-            result = await db.execute(select(MovimientosGastos).where(MovimientosGastos.Id == movimiento_id))
+            # Se valida que el movimiento pertenezca al usuario, para evitar
+            # que un usuario actualice movimientos ajenos.
+            result = await db.execute(
+                select(MovimientosGastos).where(
+                    MovimientosGastos.Id == movimiento_id,
+                    MovimientosGastos.UsuarioId == usuario_id,
+                )
+            )
             registro = result.scalars().first()
             if not registro:
-                return RespuestaFuncion(success_registro=False, mensaje=f"Movimiento con id {movimiento_id} no encontrado")
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje=f"Movimiento con id {movimiento_id} no encontrado para el usuario",
+                )
 
-            if movimiento.get("user_id") is not None:
-                registro.UsuarioId = movimiento["user_id"]
-            if movimiento.get("total") is not None:
-                registro.TotalGasto = movimiento["total"]
-            if movimiento.get("iva_diez") is not None:
-                registro.IvaDiez = movimiento["iva_diez"]
-            if movimiento.get("iva_cinco") is not None:
-                registro.IvaCinco = movimiento["iva_cinco"]
-            if movimiento.get("id_categoria") is not None:
-                registro.CategoriaId = movimiento["id_categoria"]
-            if movimiento.get("nro_factura") is not None:
-                registro.NumeroFactura = movimiento["nro_factura"]
-            if movimiento.get("model_img") is not None:
-                registro.ModeloExtraccionDatos = movimiento["model_img"]
-            if movimiento.get("model_clasificador") is not None:
-                registro.ModeloClasificador = movimiento["model_clasificador"]
-            registro.EmpresaId = empresa.Id
+            try:
+                if movimiento.get("user_id") is not None:
+                    registro.UsuarioId = movimiento["user_id"]
+                if movimiento.get("total") is not None:
+                    registro.TotalGasto = movimiento["total"]
+                if movimiento.get("iva_diez") is not None:
+                    registro.IvaDiez = movimiento["iva_diez"]
+                if movimiento.get("iva_cinco") is not None:
+                    registro.IvaCinco = movimiento["iva_cinco"]
+                if movimiento.get("id_categoria") is not None:
+                    registro.CategoriaId = movimiento["id_categoria"]
+                if movimiento.get("nro_factura") is not None:
+                    registro.NumeroFactura = movimiento["nro_factura"]
+                if movimiento.get("model_img") is not None:
+                    registro.ModeloExtraccionDatos = movimiento["model_img"]
+                if movimiento.get("model_clasificador") is not None:
+                    registro.ModeloClasificador = movimiento["model_clasificador"]
+                registro.EmpresaId = empresa.Id
 
-            await db.commit()
-            await db.refresh(registro)
-            return RespuestaFuncion()
+                # ── ETIQUETAS: se quitan las que ya no vienen y se agregan las nuevas ──
+                # Se procesa en la MISMA transacción que la actualización del registro,
+                # para que un fallo en cualquiera de los dos pasos revierta ambos.
+                if "etiquetas" in movimiento:
+                    etiquetas_nuevas = set(movimiento.get("etiquetas", []) or [])
 
-        nuevo_movimiento = MovimientosGastos(
-            UsuarioId=usuario_id,
-            TotalGasto=movimiento.get("total", 0),
-            IvaDiez=movimiento.get("iva_diez", 0),
-            IvaCinco=movimiento.get("iva_cinco", 0),
-            FechaGasto=movimiento.get("fecha_gasto"),
-            TipoRegistro=movimiento.get("tipo_registro", "Manual"),
-            CategoriaId=categoria_id,
-            EmpresaId=empresa.Id,
-            NumeroFactura=movimiento.get("nro_factura"),
-            ModeloExtraccionDatos= movimiento.get("model_img",'') ,
-            ModeloClasificador= movimiento.get("model_clasificador",'') 
-        )
-
-        try:
-            db.add(nuevo_movimiento)
-            await db.flush()  # asigna nuevo_movimiento.Id sin comitear
-
-            # ── CONCEPTOS CON ETIQUETA ──
-            if movimiento.get("conceptos", []):
-                db.add_all([
-                    MovimientosGastosConceptos(
-                        MovimientoGastoId=nuevo_movimiento.Id,
-                        ConceptoId=concepto["id_concepto"],
-                        EtiquetaId=concepto.get("id_etiqueta"),
+                    etiquetas_actuales = await db.execute(
+                        select(MovimientosGastosEtiquetas.EtiquetaId).where(
+                            MovimientosGastosEtiquetas.MovimientoGastoId == movimiento_id
+                        )
                     )
-                    for concepto in movimiento["conceptos"]
-                ])
+                    ids_actuales = {item[0] for item in etiquetas_actuales.all()}
 
-            if movimiento.get("etiquetas", []):
-                db.add_all([
-                    MovimientosGastosEtiquetas(
-                        MovimientoGastoId=nuevo_movimiento.Id,
-                        EtiquetaId=etiqueta_id,
-                    )
-                    for etiqueta_id in movimiento["etiquetas"]
-                ])
+                    ids_a_quitar = ids_actuales - etiquetas_nuevas
+                    ids_a_agregar = etiquetas_nuevas - ids_actuales
 
-            await db.commit()
-            await db.refresh(nuevo_movimiento)
-        except Exception as exc:
-            await db.rollback()
-            return RespuestaFuncion(
-                success_registro=False,
-                mensaje=f"No se pudo registrar el movimiento: {limpiar_mensaje_error_bd(str(exc))}",
+                    if ids_a_quitar:
+                        await db.execute(
+                            delete(MovimientosGastosEtiquetas).where(
+                                MovimientosGastosEtiquetas.MovimientoGastoId == movimiento_id,
+                                MovimientosGastosEtiquetas.EtiquetaId.in_(ids_a_quitar),
+                            )
+                        )
+
+                    if ids_a_agregar:
+                        db.add_all([
+                            MovimientosGastosEtiquetas(
+                                MovimientoGastoId=movimiento_id,
+                                EtiquetaId=etiqueta_id,
+                            )
+                            for etiqueta_id in sorted(ids_a_agregar)
+                        ])
+
+                await db.commit()
+                await db.refresh(registro)
+            except Exception as exc:
+                await db.rollback()
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje=f"No se pudo actualizar el movimiento: {limpiar_mensaje_error_bd(str(exc))}",
+                )
+
+            return RespuestaFuncion(data_registro=registro)
+        else:
+            nuevo_movimiento = MovimientosGastos(
+                UsuarioId=usuario_id,
+                TotalGasto=movimiento.get("total", 0),
+                IvaDiez=movimiento.get("iva_diez", 0),
+                IvaCinco=movimiento.get("iva_cinco", 0),
+                FechaGasto=movimiento.get("fecha_gasto"),
+                TipoRegistro=movimiento.get("tipo_registro", "Manual"),
+                CategoriaId=categoria_id,
+                EmpresaId=empresa.Id,
+                NumeroFactura=movimiento.get("nro_factura"),
+                ModeloExtraccionDatos=movimiento.get("model_img", ''),
+                ModeloClasificador=movimiento.get("model_clasificador", '')
             )
 
-        # Las imagenes se procesan y comitean en su propia transaccion
-        if imagenes:
-            imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
-            type_url_valor = getattr(type_url, 'value', type_url)
-            
-            if type_url_valor == "Temporal":
-                urls_procesadas = []
-                urls_eliminadas = []
-                for img_url in imagenes[:2]:
-                    resultado = r2_storage.move_between_buckets(
-                        source_url=img_url,
-                        source_bucket=r2_storage.bucket_temporales,
-                        dest_bucket=r2_storage.bucket_gastos,
-                    )
-                    if resultado.get("success"):
-                        urls_procesadas.append(resultado.get("url"))
-                        urls_eliminadas.append(img_url)
-                if urls_eliminadas:
-                   await procesar_urls_temporales(db, usuario_id, urls_eliminadas)
-                imagenes = urls_procesadas
+            try:
+                db.add(nuevo_movimiento)
+                await db.flush()  # asigna nuevo_movimiento.Id sin comitear
 
-            for index, img in enumerate(imagenes[:2], start=1):
-                try:
-                    imagen = MovimientosGastosImagenes(
-                        UrlImagen=img or "",
-                        ReferenciaCola="",
-                        MovimientoGastoId=nuevo_movimiento.Id,
-                        ErrorUploadImg=""
-                    )
-                    db.add(imagen)
-                except Exception as exc:
-                    print(f'Error procesando imagen {index}: {exc}')
+                # ── CONCEPTOS CON ETIQUETA ──
+                conceptos = movimiento.get("conceptos") or []
+                if conceptos:
+                    for concepto in conceptos:
+                        if not concepto.get("id_concepto"):
+                            raise ValueError("Cada concepto debe incluir 'id_concepto'")
+                    db.add_all([
+                        MovimientosGastosConceptos(
+                            MovimientoGastoId=nuevo_movimiento.Id,
+                            ConceptoId=concepto["id_concepto"],
+                            EtiquetaId=concepto.get("id_etiqueta"),
+                        )
+                        for concepto in conceptos
+                    ])
 
-            await db.commit()
+                if movimiento.get("etiquetas", []):
+                    db.add_all([
+                        MovimientosGastosEtiquetas(
+                            MovimientoGastoId=nuevo_movimiento.Id,
+                            EtiquetaId=etiqueta_id,
+                        )
+                        for etiqueta_id in movimiento["etiquetas"]
+                    ])
 
-        return RespuestaFuncion(data_registro=nuevo_movimiento)
+                await db.commit()
+                await db.refresh(nuevo_movimiento)
+            except Exception as exc:
+                await db.rollback()
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje=f"No se pudo registrar el movimiento: {limpiar_mensaje_error_bd(str(exc))}",
+                )
+
+            # Las imagenes se procesan y comitean en su propia transaccion
+            if imagenes:
+                imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
+                type_url_valor = getattr(type_url, 'value', type_url)
+
+                if type_url_valor == "Temporal":
+                    urls_procesadas = []
+                    urls_eliminadas = []
+                    for img_url in imagenes[:2]:
+                        resultado = r2_storage.move_between_buckets(
+                            source_url=img_url,
+                            source_bucket=r2_storage.bucket_temporales,
+                            dest_bucket=r2_storage.bucket_gastos,
+                        )
+                        if resultado.get("success"):
+                            urls_procesadas.append(resultado.get("url"))
+                            urls_eliminadas.append(img_url)
+                    if urls_eliminadas:
+                        await procesar_urls_temporales(db, usuario_id, urls_eliminadas)
+                        imagenes = urls_procesadas
+
+                for index, img in enumerate(imagenes[:2], start=1):
+                    try:
+                        imagen = MovimientosGastosImagenes(
+                            UrlImagen=img or "",
+                            ReferenciaCola="",
+                            MovimientoGastoId=nuevo_movimiento.Id,
+                            ErrorUploadImg=""
+                        )
+                        db.add(imagen)
+                    except Exception as exc:
+                        print(f'Error procesando imagen {index}: {exc}')
+
+                await db.commit()
+
+            return RespuestaFuncion(data_registro=nuevo_movimiento)
 
     except Exception as e:
         await db.rollback()
         print(limpiar_mensaje_error_bd(str(e)))
-        return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
-
-
+        return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))   
 
     
 async def eliminar_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: int):
@@ -210,10 +263,44 @@ async def eliminar_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: 
         return RespuestaFuncion(success_registro=False, mensaje="El movimiento es obligatorio")
 
     movimiento = await obtener_movimiento(db, movimiento_id, usuario_id)
+    
     if not movimiento:
+        
         return RespuestaFuncion(success_registro=False, mensaje=f"Movimiento con id {movimiento_id} no encontrado para el usuario")
 
+    imagenes_result = await db.execute(
+        select(MovimientosGastosImagenes).where(MovimientosGastosImagenes.MovimientoGastoId == movimiento_id)
+    )
+    imagenes = imagenes_result.scalars().all()
+    urls_imagenes = [img.UrlImagen for img in imagenes if img.UrlImagen]
+
     try:
+        await db.execute(
+            delete(MovimientosGastosConceptos).where(MovimientosGastosConceptos.MovimientoGastoId == movimiento_id)
+        )
+        await db.execute(
+            delete(MovimientosGastosEtiquetas).where(MovimientosGastosEtiquetas.MovimientoGastoId == movimiento_id)
+        )
+        await db.execute(
+            delete(ImagenesPendientes).where(
+                ImagenesPendientes.MovimientoId == movimiento_id,
+            )
+        )
+
+        if urls_imagenes:
+            await db.execute(
+                delete(MovimientosGastosImagenes).where(MovimientosGastosImagenes.MovimientoGastoId == movimiento_id)
+            )
+
+        for url_imagen in urls_imagenes:
+            resultado = r2_storage.delete_gasto_image(url_imagen)
+            if not resultado.get("success"):
+                raise RuntimeError(
+                    resultado.get("details")
+                    or resultado.get("error")
+                    or f"No se pudo eliminar la imagen en R2: {url_imagen}"
+                )
+
         await db.delete(movimiento)
         await db.commit()
         return RespuestaFuncion()

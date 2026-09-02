@@ -9,12 +9,13 @@ from sqlalchemy.orm import selectinload
 
 from Config.settings import AsyncSessionLocal,settings
 from Models.UrlsImagenesTemporales import UrlsImagenesTemporales
+from Repositories.envio_correo_repo import registro_envio_correo
 
 from Integrations.r2_storage import r2_storage
-from Services.email_service import enviar_correo
+
 from Utils.error_utils import limpiar_mensaje_error_bd
 async def registros_pendientes(db):
-    fecha_limite = datetime.now(timezone.utc) - timedelta(hours=1)
+    fecha_limite = datetime.now(timezone.utc) - timedelta(minutes=1)
     print(f" --> 1. Buscando URLs pendientes anteriores a {fecha_limite.isoformat()}")
     resultado = await db.execute(
         select(UrlsImagenesTemporales)
@@ -29,18 +30,24 @@ async def registros_pendientes(db):
     print(f" --> URLs pendientes encontradas: {len(registros)}")
     return registros
 
-async def notificar_resumen_eliminados( resumen: dict):
+async def registrar_correo_resumen_eliminados(db, resumen: list):
     if not resumen:
         return
-    
-    await enviar_correo(
-                destinatario=settings.MAIL_ADMIN,
-                asunto="URLS TEMPORALES ELIMINADAS",
-                template_name="urls_temp_eliminadas.html",
-                registros=resumen,
-                context_key="resumen"
-            )
-    print(f"[NOTIFICACION] Correo enviado al usuario {settings.MAIL_ADMIN}.")
+
+    correo = {
+        "destinatario": settings.MAIL_ADMIN,
+        "asunto": "URLS TEMPORALES ELIMINADAS",
+        "nombre_template": "urls_temp_eliminadas.html",
+        "data": resumen,
+        "context_key": "resumen",
+        "usuario_id": None,
+    }
+
+    respuesta = await registro_envio_correo(db, correo)
+    if respuesta.success_registro:
+        print(f"[NOTIFICACION] Correo registrado para {settings.MAIL_ADMIN}.")
+    else:
+        print(f"[NOTIFICACION] No se pudo registrar correo para {settings.MAIL_ADMIN}: {respuesta.mensaje}")
 
    
         
@@ -93,7 +100,7 @@ async def delete_img():
         await db.commit()
         if resumen:
             print(" --> 4. Envio de notificacion")
-            await notificar_resumen_eliminados(resumen)
+            await registrar_correo_resumen_eliminados(db, resumen)
         print(f"URLs temporales procesadas: {len(registros)}")
         print(f"URLs temporales eliminadas: {eliminadas}")
         

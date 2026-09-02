@@ -21,6 +21,7 @@ from Repositories.conceptos_gastos_repo import obtener_o_crear_conceptos
 from Repositories.empresas_repo import obtener_o_crear_empresa
 from Repositories.etiquetas_gastos_repo import obtener_o_crear_etiquetas
 from Repositories.movimientos_gastos_repo import registrar
+from Repositories.envio_correo_repo import registro_envio_correo
 from Services.img_factura_services import procesar_imagen_factura
 from Services.email_service import RegistroPendienteData, enviar_correo_registro_pendiente
 from DataTest.data import DATA_RESUMEN
@@ -111,36 +112,7 @@ async def marcar_estado(
         raise
 
 
-async def notificar_resumen(db, resumen: dict):
-    if not resumen:
-        return
 
-    ids_usuarios = [int(usuario_id) for usuario_id in resumen]
-    result = await db.execute(
-        select(Usuarios).where(Usuarios.Id.in_(ids_usuarios))
-    )
-    usuarios = {str(usuario.Id): usuario for usuario in result.scalars().all()}
-
-    for usuario_id, registros in resumen.items():
-        usuario = usuarios.get(str(usuario_id))
-        if not usuario or not usuario.Correo:
-            print(f"[NOTIFICACION] Usuario {usuario_id} sin correo registrado.")
-            continue
-
-        datos_registros = [
-            RegistroPendienteData(
-                codigo_tarea=registro["codigo_tarea"],
-                id_reg=registro["id_reg"],
-                fecha_hora_procesado=registro["fecha_hora_procesado"],
-            )
-            for registro in registros
-        ]
-        await enviar_correo_registro_pendiente(
-            usuario.Correo,
-            "Registro de imágenes pendientes procesadas",
-            datos_registros,
-        )
-        print(f"[NOTIFICACION] Correo enviado al usuario {usuario_id}.")
 
 async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
     """Procesa una tarea y retorna el id_reg del movimiento creado (0 si no se creó)."""
@@ -318,8 +290,36 @@ async def main():
                     resumen.setdefault(usuario_id, []).append(registro)
                 await asyncio.sleep(60)
         if resumen:
-            print("INICIO PROCESO DE NOTIFICACION")
-            await notificar_resumen(db, resumen)
+            print("INICIO PROCESO DE COLA DE CORREO")
+            for usuario_id, registros in resumen.items():
+                usuario = await db.get(Usuarios, int(usuario_id))
+                if not usuario or not usuario.Correo:
+                    print(f"[CORREO] Usuario {usuario_id} sin correo registrado.")
+                    continue
+
+                correo = {
+                    "destinatario": usuario.Correo,
+                    "asunto": "Registro de imágenes pendientes procesadas",
+                    "nombre_template": "registro_pendiente.html",
+                    "data": [
+                        {
+                            "codigo_tarea": registro["codigo_tarea"],
+                            "id_reg": registro["id_reg"],
+                            "fecha_hora_procesado": registro["fecha_hora_procesado"],
+                        }
+                        for registro in registros
+                    ],
+                    "context_key": "registros",
+                    "usuario_id": int(usuario_id),
+                }
+
+                respuesta = await registro_envio_correo(db, correo)
+                if respuesta.success_registro:
+                    print(f"[CORREO] Correo registrado para usuario {usuario_id}.")
+                else:
+                    print(
+                        f"[CORREO] No se pudo registrar correo para usuario {usuario_id}: {respuesta.mensaje}"
+                    )
         else:
             print("NO HAY DATOS QUE NOTIFICAR")
     

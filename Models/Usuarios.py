@@ -35,3 +35,9 @@ class Usuarios(Base):
 
     urls_imagenes_temporales = relationship("UrlsImagenesTemporales",back_populates="usuario",
             cascade="all, delete-orphan",)
+
+    envios_correos = relationship(
+        "EnvioCorreos",
+        back_populates="usuario",
+        cascade="all, delete-orphan",
+    )

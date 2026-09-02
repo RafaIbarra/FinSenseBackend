@@ -28,19 +28,23 @@ router_movimientos = generar_router('/gastos')
 
 
 
-@router_movimientos.post("/eliminar")
+@router_movimientos.delete("/{id}")
 async def eliminar(
     request: Request,
-    id: int = Form(...),
+    id: int,
     db: AsyncSession = Depends(get_db),
 ):
     usuario_id = int(request.state.id_usuario)
     resultado = await eliminar_movimiento(db, id, usuario_id)
 
-    if isinstance(resultado, dict) and resultado.get("error"):
-        raise HTTPException(status_code=400, detail=resultado["error"])
+    
+    if not resultado.success_registro:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=resultado.mensaje,
+                )
 
-    return resultado
+    return {"detail": "Su factura fue eliminada"}
 
 
 @router_movimientos.post("/extraer-clasificar")
@@ -105,6 +109,7 @@ async def extraer_clasificar(
                              }
                         )
         data_respuesta={
+            "id":0,
             "factura": respuesta.factura,
             "clasificacion": respuesta.clasificacion,
             "imagenes": respuesta.imagenes,
@@ -133,7 +138,7 @@ async def registro(
     try:
         id_usuario = int(request.state.id_usuario)
         factura = body.factura
-
+        id=int(body.id)
         # ── 1. VALIDACIÓN DE FACTURA ──
         if not factura.data_correct:
             raise HTTPException(
@@ -209,7 +214,7 @@ async def registro(
 
         # ── 9. REGISTRO ──
         movimiento_data = {
-            "id": 0,
+            "id": id,
             "user_id": id_usuario,
             "total": int(factura.total),
             "iva_diez": int(factura.iva_diez),
