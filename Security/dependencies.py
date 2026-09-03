@@ -12,8 +12,9 @@ from Models.SesionesActivas import SesionesActivas
 from Common.cookie_names import ACCESS_COOKIE
 from urllib.parse import urlparse
 
-async def _validar_core(request: Request, db: AsyncSession) -> dict:
-    """Lógica central: valida JWT + sesión activa en BD."""
+from Models.Usuarios import Usuarios # ajustá el import según cómo se llame en tu proyecto
+
+async def _validar_core(request: Request, db: AsyncSession, requiere_admin: bool = False) -> dict:
     raw_token = request.cookies.get(ACCESS_COOKIE)
 
     if not raw_token:
@@ -32,51 +33,41 @@ async def _validar_core(request: Request, db: AsyncSession) -> dict:
     session_id = payload.get("session_id")
     if not session_id:
         raise HTTPException(status_code=401, detail="Token sin identificador de sesión")
-    # # Validación de origen (CSRF implícito)
-    
-    # origin = request.headers.get("origin") or request.headers.get("referer", "")
-    # if settings.MODO_PRODUCCION:
-    #     if not origin:
-    #         raise HTTPException(status_code=403, detail="Origen no proporcionado")
-    #     try:
-    #         origin_host = urlparse(origin).netloc
-    #         allowed_hosts = [urlparse(o.strip()).netloc for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
-    #         if origin_host not in allowed_hosts:
-    #             raise HTTPException(status_code=403, detail="Origen no permitido")
-    #     except ValueError:
-    #         raise HTTPException(status_code=403, detail="Origen inválido")
-    
 
-
-
-    
-    
     result = await db.execute(
-        select(SesionesActivas).where(
+        select(SesionesActivas, Usuarios.IsAdmin)
+        .join(Usuarios, Usuarios.Id == SesionesActivas.UsuarioId)  # ajustá nombres de columnas/FK
+        .where(
             and_(
                 SesionesActivas.SessionId == session_id,
                 SesionesActivas.Activa == True,
             )
         )
     )
-    sesion = result.scalars().first()
-    
-    if not sesion:
+    row = result.first()
+
+    if not row:
         raise HTTPException(status_code=401, detail="Sesión revocada o expirada")
+
+    sesion, is_admin = row
+
+    if requiere_admin and not is_admin:
+        raise HTTPException(status_code=403, detail="Requiere privilegios de administrador")
 
     request.state.usuario = payload.get("sub")
     request.state.id_usuario = payload.get("user_id")
     request.state.session_id = session_id
+    request.state.is_admin = bool(is_admin)  # útil si en el endpoint querés usarlo después
 
     return payload
 
 
-async def usuario_autenticado(request: Request) -> dict:
+async def usuario_autenticado(request: Request, requiere_admin: bool = False) -> dict:
     """
-    Llamada manualmente desde auth_guard() (Security/guards.py) con un
-    solo argumento (request) — no pasa por el mecanismo de Depends de
+    Llamada manualmente desde auth_guard() (Security/guards.py) con
+    (request, requiere_admin) — no pasa por el mecanismo de Depends de
     FastAPI, así que no puede recibir una sesión inyectada. Por eso
     abre su propia sesión de DB, dedicada solo a esta validación.
     """
     async with AsyncSessionLocal() as session:
-        return await _validar_core(request, session)
+        return await _validar_core(request, session, requiere_admin=requiere_admin)

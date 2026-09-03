@@ -20,6 +20,7 @@ from Apis.EmpresasApi import router_empresas
 from Apis.DisponibilidadModelsApi import router_models
 from Apis.ListadosGastosApi import router_movimientos_listados
 from Apis.TestsApi import router_tests
+from Apis.AdminApi import router_admin
 from Common.rate_limit_middleware import default_rate_limiter,rate_limit
 from Common.security_headers import SecurityHeadersMiddleware
 
@@ -85,6 +86,7 @@ async def general_exception_handler(request, exc):
 
 
 # ─── Routers ────────────────────────────────────────────────────────────────────
+app.include_router(router_admin)
 app.include_router(router_user_public)
 app.include_router(router_sesion_protegida)
 app.include_router(router_sesion_public)

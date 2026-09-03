@@ -15,7 +15,7 @@ from Integrations.r2_storage import r2_storage
 
 from Utils.error_utils import limpiar_mensaje_error_bd
 async def registros_pendientes(db):
-    fecha_limite = datetime.now(timezone.utc) - timedelta(minutes=1)
+    fecha_limite = datetime.now(timezone.utc) - timedelta(minutes=settings.URLS_TEMPORALES_MINUTOS)
     print(f" --> 1. Buscando URLs pendientes anteriores a {fecha_limite.isoformat()}")
     resultado = await db.execute(
         select(UrlsImagenesTemporales)

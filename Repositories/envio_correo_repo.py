@@ -91,6 +91,17 @@ async def obtener_envios_pendientes(db: AsyncSession):
         await db.rollback()
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
 
+async def listado_envios_correo(db: AsyncSession):
+    try:
+        result = await db.execute(
+            select(EnvioCorreos).order_by(EnvioCorreos.FechaRegistro.asc())
+        )
+        return RespuestaFuncion(data_registro=result.scalars().all())
+    except Exception as e:
+        await db.rollback()
+        return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
+
+
 
 async def obtener_envios_correos(db: AsyncSession):
     try:

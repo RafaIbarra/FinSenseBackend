@@ -1,11 +1,13 @@
-from datetime import datetime
 from collections.abc import Mapping
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Integrations.r2_storage import r2_storage
 from Models.ImagenesReportadas import ImagenesReportadas
+from Models.ImagenesReportadasUrls import ImagenesReportadasUrls
+from Models.Usuarios import Usuarios
 from Repositories.urls_imagenes_temporales_repo import procesar_urls_temporales
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
@@ -46,9 +48,6 @@ async def registro_reporte_imagen(
 			return RespuestaFuncion(success_registro=False, mensaje="Debe enviarse al menos una imagen")
 
 		imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
-		timestamp = datetime.now().strftime("%Y_%m_%d_T_%H_%M_%S")
-		codigo_reporte = f"U_{id_usuario}_R_{timestamp}"
-
 		for url_temporal in imagenes[:2]:
 			if type_url_valor != "Temporal":
 				urls_registradas.append(url_temporal)
@@ -67,19 +66,19 @@ async def registro_reporte_imagen(
 			urls_registradas.append(resultado.get("url"))
 			urls_temporales.append(url_temporal)
 
-		for url in urls_registradas:
-			if not url:
-				continue
-
-			db.add(
-				ImagenesReportadas(
-					CodigoReporte=codigo_reporte,
-					UrlImagen=url,
-					UsuarioId=id_usuario,
-					Respuesta=respuesta,
-					Observacion=observacion,
-				)
+		reporte = ImagenesReportadas(
+			UsuarioId=id_usuario,
+			Respuesta=respuesta,
+			Observacion=observacion,
+		)
+		reporte.urls = [
+			ImagenesReportadasUrls(
+				UrlImagen=url,
 			)
+			for url in urls_registradas
+			if url
+		]
+		db.add(reporte)
 
 		if urls_temporales:
 			resultado_procesamiento = await procesar_urls_temporales(
@@ -106,3 +105,43 @@ async def registro_reporte_imagen(
 			success_registro=False,
 			mensaje=limpiar_mensaje_error_bd(str(exc)),
 		)
+
+
+async def listado_reportados(db: AsyncSession):
+	try:
+		result = await db.execute(
+			select(
+				ImagenesReportadas,
+				ImagenesReportadasUrls,
+				Usuarios.Id,
+				Usuarios.NombreUsuario,
+				Usuarios.ApellidoUsuario,
+				Usuarios.UserName,
+			)
+			.join(ImagenesReportadasUrls, ImagenesReportadasUrls.ImagenesReportadasId == ImagenesReportadas.Id)
+			.outerjoin(Usuarios, ImagenesReportadas.UsuarioId == Usuarios.Id)
+			.order_by(ImagenesReportadas.FechaRegistro.desc())
+		)
+
+		registros = [
+			{
+				"id": reporte.Id,
+				"url_imagen": url_reporte.UrlImagen,
+				"fecha_registro": reporte.FechaRegistro,
+				"usuario_id": reporte.UsuarioId,
+				"respuesta": reporte.Respuesta,
+				"observacion": reporte.Observacion,
+				"estado_resolucion": reporte.EstadoResolucion,
+				"resolucion": reporte.Resolucion,
+				"fecha_resolucion": reporte.FechaResolucion,
+				"id_usuario": id_usuario,
+				"nombre_usuario": nombre_usuario,
+				"apellido_usuario": apellido_usuario,
+				"user_name": user_name,
+			}
+			for reporte, url_reporte, id_usuario, nombre_usuario, apellido_usuario, user_name in result.all()
+		]
+		return RespuestaFuncion(data_registro=registros)
+	except Exception as e:
+		await db.rollback()
+		return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))

@@ -1,15 +1,18 @@
 
+from sqlalchemy import  select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import  List,Tuple
+
 from Models.ImagenesPendientes import ImagenesPendientes
+from Models.MovimientosGastos import MovimientosGastos
+from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
+
 
 from Integrations.r2_storage import *
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 from Utils.img_works import registrar_lista_imagenes
-
-
-
 
 
 async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, imagenes: List[Tuple[bytes, str, str]], motivo: str):
@@ -69,5 +72,63 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
 
 
 
+async def listado_imagenes_pendientes(db: AsyncSession):
+    try:
+        result = await db.execute(
+            select(ImagenesPendientes)
+            .options(
+                selectinload(ImagenesPendientes.movimiento).selectinload(
+                    MovimientosGastos.categoria
+                ),
+                selectinload(ImagenesPendientes.movimiento).selectinload(
+                    MovimientosGastos.empresa
+                ),
+                selectinload(ImagenesPendientes.movimiento)
+                .selectinload(MovimientosGastos.etiquetas)
+                .selectinload(MovimientosGastosEtiquetas.etiqueta),
+            )
+            .order_by(ImagenesPendientes.FechaRegistro.desc())
+        )
+        imagenes = result.scalars().all()
 
-  
+        def formatear_fecha(fecha):
+            return fecha.strftime("%d/%m/%Y %H:%M:%S") if fecha else None
+
+        respuesta= [
+            {
+                "id": imagen.Id,
+                "codigo_tarea": imagen.CodigoTarea,
+                "url_imagen": imagen.UrlImagen,
+                "fecha_registro": formatear_fecha(imagen.FechaRegistro),
+                "motivo": imagen.Motivo,
+                "procesado": imagen.Procesado,
+                "fecha_procesado": formatear_fecha(imagen.FechaProcesado),
+                "movimiento": {
+                    "id": movimiento.Id,
+                    "categoria": {
+                        "id": movimiento.categoria.Id,
+                        "nombre": movimiento.categoria.NombreCategoria,
+                    } if movimiento.categoria else None,
+                    "etiquetas": [
+                        {
+                            "id": enlace.EtiquetaId,
+                            "nombre": enlace.etiqueta.NombreEtiqueta,
+                        }
+                        for enlace in movimiento.etiquetas
+                    ],
+                    "numero_factura": movimiento.NumeroFactura,
+                    "empresa": {
+                        "id": movimiento.empresa.Id,
+                        "nombre": movimiento.empresa.NombreEmpresa,
+                        "ruc": movimiento.empresa.Ruc,
+                        "url_logo": movimiento.empresa.UrlLogo,
+                    } if movimiento.empresa else None,
+                    "total_gasto": movimiento.TotalGasto,
+                } if (movimiento := imagen.movimiento) else None,
+            }
+            for imagen in imagenes
+        ]
+        return RespuestaFuncion(data_registro=respuesta)
+    except Exception as e:
+            await db.rollback()
+            return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))

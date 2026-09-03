@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from Security.guards import auth_guard
 
-def generar_router(data_prefix, data_tags=[], protegido=True):
+def generar_router(data_prefix, data_tags=[], protegido=True, protegido_admin=False):
     prefijo_final = f'/api{data_prefix}'
     
     kwargs = {
@@ -9,7 +9,7 @@ def generar_router(data_prefix, data_tags=[], protegido=True):
         "tags": data_tags,
     }
     
-    if protegido:
-        kwargs["dependencies"] = [Depends(auth_guard)]
+    if protegido or protegido_admin:
+        kwargs["dependencies"] = [Depends(auth_guard(requiere_admin=protegido_admin))]
     
     return APIRouter(**kwargs)
