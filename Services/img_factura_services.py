@@ -29,12 +29,21 @@ async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_
                 time_out=time_out_model,
             )
     # factura_ocr=FacturaExtraida(**TESTS_DATA['factura'])
-    
+
+    #ERROR EN RESPUESTA DE MODELOS
     if not factura_ocr.success_registro:
         return RespuestaProcesamientoImgFacturas(procesamiento_correcto=False,solicita_envio_pendiente=True,mensaje_error=factura_ocr.mensaje_error)
-    
+
+    data_img=None
+    if upload_file:
+        imagenes_para_subir = [(imagen_1, filename_1),]
+        if imagen_2:
+            imagenes_para_subir.append((imagen_2, filename_2))
+        data_img=await registrar_lista_imagenes(imagenes_para_subir,temp_url)
+
+    #ERROR EN FORMATO DE RESPUESTA, POR FORMATO DE RESPUESTA NO SE DA LA OPCION DE SOLICITAR ENVIO PENDIENTE
     if not factura_ocr.data_correct:
-        return RespuestaProcesamientoImgFacturas(procesamiento_correcto=False,solicita_envio_pendiente=False,mensaje_error=factura_ocr.mensaje_error)
+        return RespuestaProcesamientoImgFacturas(procesamiento_correcto=False,solicita_envio_pendiente=False,mensaje_error=factura_ocr.mensaje_error,imagenes=data_img)
 
     clasificacion_groq = await clasificar_gasto(
                 {
@@ -44,13 +53,9 @@ async def procesar_imagen_factura(imagenes: List[Tuple[bytes, str, str]],upload_
                 },
                 time_out=time_out_model,
             )
+    
     # clasificacion_groq=ClasificacionGasto(**TESTS_DATA['clasificacion'])
-    data_img=None
-    if upload_file:
-        imagenes_para_subir = [(imagen_1, filename_1),]
-        if imagen_2:
-            imagenes_para_subir.append((imagen_2, filename_2))
-        data_img=await registrar_lista_imagenes(imagenes_para_subir,temp_url)
+    
     
     # data_img=RespuestaImagenesSubidas(**TESTS_DATA['imagenes'])
     

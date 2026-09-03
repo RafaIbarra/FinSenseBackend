@@ -1,11 +1,12 @@
 from datetime import datetime
+from collections.abc import Mapping
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Integrations.r2_storage import r2_storage
 from Models.ImagenesReportadas import ImagenesReportadas
 from Repositories.urls_imagenes_temporales_repo import procesar_urls_temporales
-from Schemas.apis_schemas import RegistroMovimientoGastoRequest
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 
@@ -13,8 +14,7 @@ from Utils.error_utils import limpiar_mensaje_error_bd
 async def registro_reporte_imagen(
 	db: AsyncSession,
 	id_usuario: int,
-	valores: RegistroMovimientoGastoRequest,
-	observacion: str | None = None,
+	valores: dict[str, Any],
 ):
 	urls_registradas = []
 	urls_temporales = []
@@ -23,11 +23,25 @@ async def registro_reporte_imagen(
 		if not id_usuario:
 			return RespuestaFuncion(success_registro=False, mensaje="El usuario es obligatorio")
 
-		if not valores:
+		if not isinstance(valores, Mapping):
 			return RespuestaFuncion(success_registro=False, mensaje="Los datos del reporte son obligatorios")
 
-		type_url_valor = getattr(valores.imagenes.tipo_url, "value", valores.imagenes.tipo_url)
-		imagenes = valores.imagenes.urls_img
+		respuesta = dict(valores)
+		detail = respuesta.get("detail")
+		if not isinstance(detail, Mapping):
+			detail = {}
+
+		imagenes_data = respuesta.get("imagenes", detail.get("imagenes"))
+		if isinstance(imagenes_data, Mapping):
+			type_url_valor = imagenes_data.get("tipo_url")
+			imagenes = imagenes_data.get("urls_img")
+		else:
+			type_url_valor = None
+			imagenes = imagenes_data
+
+		if hasattr(type_url_valor, "value"):
+			type_url_valor = type_url_valor.value
+		observacion = respuesta.get("observacion", detail.get("observacion"))
 		if not imagenes:
 			return RespuestaFuncion(success_registro=False, mensaje="Debe enviarse al menos una imagen")
 
@@ -62,8 +76,7 @@ async def registro_reporte_imagen(
 					CodigoReporte=codigo_reporte,
 					UrlImagen=url,
 					UsuarioId=id_usuario,
-					ResultadoExtraccion=valores.factura.model_dump(),
-					ResultadoClasificacion=valores.clasificacion.model_dump(),
+					Respuesta=respuesta,
 					Observacion=observacion,
 				)
 			)
@@ -74,7 +87,7 @@ async def registro_reporte_imagen(
 				id_usuario,
 				urls_temporales,
 			)
-			if not resultado_procesamiento.success:
+			if not resultado_procesamiento.success_registro:
 				raise RuntimeError(resultado_procesamiento.mensaje or "No se pudieron procesar las URLs temporales")
 
 		await db.commit()

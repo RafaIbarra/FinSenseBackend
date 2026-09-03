@@ -58,7 +58,7 @@ async def registrar_lista_imagenes(
     return RespuestaImagenesSubidas(
         urls_img=imagenes_subidas,
         success=registro_correcto,
-        mensaje_error=mensaje_error,
+        mensaje_error_subida=mensaje_error,
         tipo_url=TipoUrlEnum.Temporal if temp_url else TipoUrlEnum.Procesada,
     )
 

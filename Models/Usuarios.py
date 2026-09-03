@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Column, Integer, String, DateTime, func,Boolean
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -14,6 +14,7 @@ class Usuarios(Base):
     Correo = Column("Correo", String(255), nullable=False)
     FechaRegistro = Column("FechaRegistro", DateTime(timezone=True), server_default=func.now(), nullable=False)
     Password = Column("Password", String(255), nullable=False)
+    IsAdmin = Column("IsAdmin", Boolean, nullable=False, server_default="false")
 
     sesiones_activas = relationship(
         "SesionesActivas",

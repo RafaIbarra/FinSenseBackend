@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import Depends, Form, HTTPException, Request,status,File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,7 @@ from Repositories.categorias_gastos_repo import obtener_o_crear_categoria
 from Repositories.conceptos_gastos_repo import obtener_o_crear_conceptos
 from Repositories.etiquetas_gastos_repo import obtener_o_crear_etiquetas
 from Repositories.imagenes_pendientes_repo import registrar_imagenes_pendientes
+from Repositories.imagenes_reportadas_repo import registro_reporte_imagen
 from Repositories.movimientos_gastos_repo import eliminar_movimiento, registrar
 from Repositories.urls_imagenes_temporales_repo import registrar_urls_temporales
 from Services.img_factura_services import procesar_imagen_factura
@@ -87,26 +88,34 @@ async def extraer_clasificar(
         respuesta = await procesar_imagen_factura(imagenes=imagenes_procesadas,upload_file=True, temp_url=True,time_out_model=180)
         
         
-        if not respuesta.procesamiento_correcto:
-            
-        
+        if not respuesta.procesamiento_correcto and respuesta.solicita_envio_pendiente: #ERROR EN LA API DE MODELOS
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-            "solicita_envio_pendiente": respuesta.solicita_envio_pendiente,
-            "mensaje_error": respuesta.mensaje_error,
-                 }
+                detail={"solicita_envio_pendiente": respuesta.solicita_envio_pendiente,"mensaje_error": respuesta.mensaje_error,}
             )
+
+        
         
         lista_urls=respuesta.imagenes.urls_img
         registro_urls_temporales=await registrar_urls_temporales(db,id_usuario,lista_urls)
-        if not registro_urls_temporales.success_registro:
+
+        if  not registro_urls_temporales.success_registro:
             raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail={
                         "solicita_envio_pendiente":True,
                         "mensaje_error": registro_urls_temporales.mensaje,
                              }
+                        )
+        if not respuesta.procesamiento_correcto and not respuesta.solicita_envio_pendiente: #ERROR DATOS DE LA IMAGEN
+            raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={
+                                "imagenes":  respuesta.imagenes.model_dump(mode="json"),
+                                "solicita_envio_pendiente": respuesta.solicita_envio_pendiente,
+                                "mensaje_error": respuesta.mensaje_error
+                            }
                         )
         data_respuesta={
             "id":0,
@@ -327,3 +336,27 @@ async def registro_pendiente(
 
 
 
+@router_movimientos.post("/reportar-imagen")
+async def reportar_imagen(
+    request: Request,
+    
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        body = await request.json()
+        id_usuario = int(request.state.id_usuario)
+        resultado = await registro_reporte_imagen(db, id_usuario, body)
+        if not resultado.success_registro:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=resultado.mensaje,
+            )
+
+        return {"detail": "La imagen fue reportada"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error reportando imagen: {str(e)}"
+        )

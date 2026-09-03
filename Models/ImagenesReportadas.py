@@ -19,8 +19,7 @@ class ImagenesReportadas(Base):
 	UrlImagen = Column("UrlImagen", String(500), nullable=False, unique=True, index=True)
 	FechaRegistro = Column("FechaRegistro", DateTime(timezone=True), server_default=func.now(), nullable=False)
 	UsuarioId = Column("UsuarioId", Integer, ForeignKey("Usuarios.Id"), nullable=False, index=True)
-	ResultadoExtraccion = Column("ResultadoExtraccion", JSON, nullable=True)
-	ResultadoClasificacion = Column("ResultadoClasificacion", JSON, nullable=True)
+	Respuesta = Column("Respuesta", JSON, nullable=True)
 	Observacion = Column("Observacion", String(1000), nullable=True)
 	EstadoResolucion = Column(
 		"EstadoResolucion",

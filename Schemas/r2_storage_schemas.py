@@ -12,5 +12,5 @@ class TipoUrlEnum(enum.Enum):
 class RespuestaImagenesSubidas(BaseModel):
     urls_img: List[str] = []
     success: Optional[bool] = True
-    mensaje_error: str = ""
+    mensaje_error_subida: str = ""
     tipo_url: Optional[TipoUrlEnum] = None

@@ -11,15 +11,15 @@ client = AsyncGroq(api_key=GROQ_API_KEY)
 MODELS_FALLBACK = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
 
 MODEL_KWARGS = {
-    "llama-3.1-8b-instant": {"max_tokens": 300},
-    "openai/gpt-oss-20b": {"max_tokens": 600, "reasoning_effort": "none"},
-    "qwen/qwen3.6-27b": {"max_tokens": 600, "reasoning_effort": "none"},
+    "llama-3.1-8b-instant": {"max_tokens": 1500},
+    "openai/gpt-oss-20b": {"max_tokens": 2000, "reasoning_effort": "none"},
+    "qwen/qwen3.6-27b": {"max_tokens": 2000, "reasoning_effort": "none"},
 }
-DEFAULT_MODEL_KWARGS = {"max_tokens": 300}
+DEFAULT_MODEL_KWARGS = {"max_tokens": 1500}
 
 CATEGORIA_DEFAULT = "Desconocido"
 ETIQUETAS_DEFAULT = ["Sin Etiquetas"]
-MAX_ETIQUETAS = 5
+MAX_ETIQUETAS = 100
 
 CLASIFICACION_SYNONYMS = {
     # Variantes → Forma canónica
@@ -91,6 +91,12 @@ Tu trabajo es devolver DOS cosas:
      "Supermercados", no asignes una etiqueta como "Carburantes", porque un supermercado no vende combustible;
      en ese caso, revisá el concepto y usá una etiqueta que sí sea razonable para ese rubro (o una etiqueta
      genérica si no encaja en ninguna categoría típica del rubro).
+   - IMPORTANTE: la etiqueta "Combustible" se usa EXCLUSIVAMENTE para combustibles de uso vehicular/automotor
+     (nafta, gasoil, diésel, GNC, etc.). NUNCA uses "Combustible" para carbón (carbón vegetal, carbón en bolsa,
+     carbón para parrilla, briquetas, etc.) sin importar cómo esté descrito el ítem. El carbón vendido en un
+     supermercado o almacén corresponde a un uso doméstico (parrilla/cocina), no automotor. Etiquetalo como
+     "Almacén Y Despensa", "Hogar", "Parrilla Y Asado" o una etiqueta genérica equivalente, nunca como
+     "Combustible" o "Carburantes".
    - Si "conceptos" viene vacío, devolvé exactamente [{{"etiqueta": "{ETIQUETAS_DEFAULT[0]}", "conceptos": []}}].
 
 Responde ÚNICAMENTE con un JSON válido en este formato exacto, sin explicaciones ni markdown:
