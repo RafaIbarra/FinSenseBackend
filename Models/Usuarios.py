@@ -48,3 +48,9 @@ class Usuarios(Base):
         back_populates="usuario",
         cascade="all, delete-orphan",
     )
+
+    preferencias = relationship(
+        "PreferenciasUsuario",
+        back_populates="usuario",
+        cascade="all, delete-orphan",
+    )

@@ -1,0 +1,87 @@
+[
+  {
+    "nombre": "tema_1",
+    "tipo": "oscuro-neutro",
+    "descripcion": "Fondo negro azulado con navegación verde menta medio y acentos dorados"
+  },
+  {
+    "nombre": "tema_2",
+    "tipo": "oscuro-neutro",
+    "descripcion": "Fondo negro azulado con navegación verde menta claro y acentos menta"
+  },
+  {
+    "nombre": "tema_3",
+    "tipo": "oscuro-neutro",
+    "descripcion": "Fondo negro azulado con navegación verde esmeralda y acentos esmeralda"
+  },
+  {
+    "nombre": "tema_4",
+    "tipo": "oscuro-cálido",
+    "descripcion": "Fondo negro cálido con navegación terracota y acentos terracota"
+  },
+  {
+    "nombre": "tema_5",
+    "tipo": "oscuro-cálido",
+    "descripcion": "Fondo negro cálido con navegación ámbar dorado y acentos ámbar"
+  },
+  {
+    "nombre": "tema_6",
+    "tipo": "oscuro-cálido",
+    "descripcion": "Fondo negro cálido con navegación verde salvia y acentos salvia"
+  },
+  {
+    "nombre": "tema_7",
+    "tipo": "oscuro-azulado",
+    "descripcion": "Fondo azul muy oscuro con navegación azul cielo y acentos azul cielo"
+  },
+  {
+    "nombre": "tema_8",
+    "tipo": "oscuro-azulado",
+    "descripcion": "Fondo azul muy oscuro con navegación violeta y acentos violeta"
+  },
+  {
+    "nombre": "tema_9",
+    "tipo": "oscuro-azulado",
+    "descripcion": "Fondo azul muy oscuro con navegación turquesa y acentos turquesa"
+  },
+  {
+    "nombre": "tema_10",
+    "tipo": "claro-crema",
+    "descripcion": "Fondo crema con navegación ocre y acentos ocre medio"
+  },
+  {
+    "nombre": "tema_11",
+    "tipo": "claro-crema",
+    "descripcion": "Fondo crema con navegación verde bosque y acentos verde bosque"
+  },
+  {
+    "nombre": "tema_12",
+    "tipo": "claro-crema",
+    "descripcion": "Fondo crema con navegación púrpura y acentos púrpura"
+  },
+  {
+    "nombre": "tema_13",
+    "tipo": "claro-grisáceo",
+    "descripcion": "Fondo gris frío claro con navegación azul acero y acentos azul acero"
+  },
+  {
+    "nombre": "tema_14",
+    "tipo": "claro-grisáceo",
+    "descripcion": "Fondo gris frío claro con navegación rojo coral y acentos coral"
+  },
+  {
+    "nombre": "tema_15",
+    "tipo": "claro-grisáceo",
+    "descripcion": "Fondo gris frío claro con navegación verde menta oscuro y acentos menta oscuro"
+  },
+  {
+    "nombre": "tema_16",
+    "tipo": "claro-crema",
+    "descripcion": "Fondo crema muy claro con navegación verde menta claro y acentos menta claro"
+  },
+  {
+    "nombre": "tema_17",
+    "tipo": "claro-crema",
+    "descripcion": "Fondo crema con navegación azul acero y acentos azul acero"
+  }
+]

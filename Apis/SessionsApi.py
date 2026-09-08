@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from Common.routers_factory import generar_router
 from Config.settings import get_db, settings
+from Models.PreferenciasUsuario import PreferenciasUsuario
 from Models.SesionesActivas import SesionesActivas
+from Models.Temas import Temas
 from Models.Usuarios import Usuarios
 
 from Security.password_utils import verify_password
@@ -166,19 +168,50 @@ async def login(
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail=e.mensaje)
 
-    # 7. Setear cookies
-    _set_auth_cookies(response, access_token, refresh_token, cookie_max_age)
+    # 7. Obtener o crear la preferencia de tema del usuario
+    resultado_preferencia = await db.execute(
+        select(PreferenciasUsuario, Temas.NombreTema)
+        .join(Temas, PreferenciasUsuario.TemaId == Temas.Id)
+        .where(PreferenciasUsuario.UsuarioId == user.Id)
+    )
+    preferencia = resultado_preferencia.first()
 
-    # 8. Responder
-    return {
-        "status": "success",
-        "UserName": user.UserName,
-        "UserId": user.Id,
-        "Correo": user.Correo,
-        "SesionId": sesion.Id,
-        "Dispositivo": "Móvil" if es_movil else "Navegador/Otro",
-        "ExpiraEnMinutos": access_ttl,
-    }
+    if preferencia:
+        tema = preferencia[1]
+    else:
+        resultado_tema = await db.execute(
+            select(Temas).where(Temas.NombreTema == "tema_17")
+        )
+        tema_predeterminado = resultado_tema.scalars().first()
+        if not tema_predeterminado:
+            raise HTTPException(status_code=500, detail="Tema predeterminado no encontrado")
+
+        db.add(
+            PreferenciasUsuario(
+                UsuarioId=user.Id,
+                TemaId=tema_predeterminado.Id,
+            )
+        )
+        await db.commit()
+        tema = tema_predeterminado.NombreTema
+
+    # 8. Setear cookies
+    _set_auth_cookies(response, access_token, refresh_token, cookie_max_age)
+    data={"status": "success",
+            "token":access_token,
+            "refresh":refresh_token,
+            "UserName": user.UserName,
+            "sesion":session_id,
+            "recorrido":False,
+            "UserId": user.Id,
+            "Correo": user.Correo,
+            "tema": tema,
+            "SesionId": sesion.Id,
+            "Dispositivo": "Móvil" if es_movil else "Navegador/Otro",
+            "ExpiraEnMinutos": access_ttl,}
+    
+    # 9. Responder
+    return data
 
 
 @router_sesion_protegida.post("/logout")

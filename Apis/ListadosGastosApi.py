@@ -15,10 +15,9 @@ async def listar_movimiento_usuario(
     usuario_id = int(request.state.id_usuario)
     datos = await movimientos_usuario_gastos(db,usuario_id)
     
-    return {
+    return datos
         
-        "datos":datos
-    }
+    
 @router_movimientos_listados.get("/pendientes-usuario")
 async def listar_imagens_usuario(
     request: Request,

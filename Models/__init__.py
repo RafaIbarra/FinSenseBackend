@@ -14,7 +14,9 @@ from .ImagenesReportadasUrls import ImagenesReportadasUrls
 from .ErroresModelos import ErroresModelos
 from .UrlsImagenesTemporales import UrlsImagenesTemporales
 from .EnvioCorreos import EnvioCorreos
+from .Temas import Temas
+from .PreferenciasUsuario import PreferenciasUsuario
 
 __all__ = ["Usuarios", "SesionesActivas", "Empresas", "CategoriasGastos", "EtiquetasGastos", "ConceptosGastos", 
            "MovimientosGastos", "MovimientosGastosImagenes", "MovimientosGastosEtiquetas", "MovimientosGastosConceptos",
-           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos"]
+           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos", "Temas", "PreferenciasUsuario"]
