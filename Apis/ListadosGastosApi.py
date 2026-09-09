@@ -7,6 +7,7 @@ from Common.rate_limit_middleware import rate_limit
 from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario
 
 router_movimientos_listados = generar_router('/gastos-listados')
+
 @router_movimientos_listados.get("/movimientos-usuario")
 async def listar_movimiento_usuario(
     request: Request,
@@ -23,6 +24,7 @@ async def listar_imagens_usuario(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    
     usuario_id = int(request.state.id_usuario)
     datos = await listar_imagenes_pendientes_usuario(db,usuario_id)
     

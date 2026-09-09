@@ -1,4 +1,4 @@
-from fastapi import  Depends, Form, HTTPException
+from fastapi import  Depends, Form, HTTPException,Request,status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -9,6 +9,7 @@ from Common.routers_factory import generar_router
 from Config.settings import get_db
 from Security.password_utils import hash_password
 from Models.Usuarios import Usuarios
+from Repositories.preferencia_usuario_repo import registrar_preferencia_usuario
 import re
 
 
@@ -16,6 +17,7 @@ import re
 
 _PREFIX = '/user'
 router_user_public = generar_router(_PREFIX, ["Registro Usuarios"], protegido=False)
+router_user_privado = generar_router(_PREFIX, ["Preferencias Usuarios"])
 
 
 
@@ -79,4 +81,30 @@ async def RegistroUsuario(
         raise HTTPException(
             status_code=500,
             detail="Error inesperado del servidor. Intente más tarde."
+        )
+
+@router_user_privado.post("/usuario-movile-theme")
+async def asignar_tema_usuario(
+    request: Request,
+    tema: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        
+        id_usuario = int(request.state.id_usuario)
+        print(f'el usuario es {id_usuario}')
+        registro = await registrar_preferencia_usuario(db, id_usuario,tema)
+        if not registro.success_registro:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=registro.mensaje,
+            )
+        return {"detail": "Su preferencia fue procesada"}
+        
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error registro preferencia: {str(e)}"
         )
