@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Config.settings import get_db
 from Common.routers_factory import generar_router
 from Common.rate_limit_middleware import rate_limit
-from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario
+from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario,datos_iva_mes
 
 router_movimientos_listados = generar_router('/gastos-listados')
 
@@ -41,10 +41,11 @@ async def estadisticas(
     usuario_id = int(request.state.id_usuario)
     ahora = datetime.now()
     año_actual = ahora.year
-    mes_actual = ahora.month
-
+    mes_actual = ahora.month -1
+    await datos_iva_mes(db, usuario_id, año_actual, mes_actual)
     # Pasar los parámetros a la función
     datos = await dashboard_usuario(db, usuario_id, año_actual, mes_actual)
+    datos= await datos_iva_mes(db, usuario_id, año_actual, mes_actual)
     
     return {
         
