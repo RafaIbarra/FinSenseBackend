@@ -197,10 +197,13 @@ async def login(
 
     # 8. Setear cookies
     _set_auth_cookies(response, access_token, refresh_token, cookie_max_age)
-    data={"status": "success",
+    data={
             "token":access_token,
             "refresh":refresh_token,
             "UserName": user.UserName,
+            "nombre": user.NombreUsuario,
+            "apellido": user.ApellidoUsuario,
+            "fecha_registro":user.FechaRegistro.strftime("%d/%m/%Y %H:%M:%S"),
             "sesion":session_id,
             "recorrido":False,
             "UserId": user.Id,
@@ -327,10 +330,23 @@ async def refresh_token(
 
 
 @router_sesion_protegida.get("/control-sesion")
-async def control_sesion(request: Request):
+async def control_sesion(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    id_usuario = int(request.state.id_usuario)
+    resultado = await db.execute(
+        select(Usuarios).where(Usuarios.Id == id_usuario)
+    )
+    usuario = resultado.scalars().first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
     respuesta = {
-        'Usuario': request.state.usuario,
-        'IdUsuario': request.state.id_usuario,
+        'UserName': usuario.UserName,
+        'nombre': usuario.NombreUsuario,
+        'apellido': usuario.ApellidoUsuario,
+        "fecha_registro": usuario.FechaRegistro.strftime("%d/%m/%Y %H:%M:%S")
     }
     return respuesta
 

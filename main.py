@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from Config.settings import settings, get_db
 from Apis.UsersApi import router_user_public,router_user_privado
+from Apis.ConfiguracionesUsuarioApi import router_user_config
 
 from Apis.SessionsApi import router_sesion_protegida,router_sesion_public
 from Apis.TransaccionesMovimientosGastosApi import router_movimientos
@@ -97,6 +98,8 @@ app.include_router(router_categorias)
 app.include_router(router_empresas)
 app.include_router(router_models)
 app.include_router(router_tests)
+app.include_router(router_user_config)
+
 
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────

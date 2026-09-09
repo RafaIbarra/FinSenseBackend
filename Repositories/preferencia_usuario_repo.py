@@ -34,7 +34,7 @@ async def registrar_preferencia_usuario(
 			)
 		)
 		tema = resultado_tema.scalars().first()
-		print(f'el temas es {tema}')
+		
 		if not tema:
 			return RespuestaFuncion(
 				success_registro=False,
