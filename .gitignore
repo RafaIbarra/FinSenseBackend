@@ -45,7 +45,7 @@ dist/
 build/
 *.egg-info/
 pip-wheel-metadata/
-
+deploy.sh
 # ─── Alembic: NO ignorar versions/ ───────────────────────────────────────────
 # Las migraciones DEBEN versionarse en Git.
 # No pongas: alembic/versions/
