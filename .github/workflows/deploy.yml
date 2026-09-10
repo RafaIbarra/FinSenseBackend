@@ -10,4 +10,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Deploy to production
-        run: ./deploy.sh
+        run: ${{ vars.DEPLOY_SCRIPT }}
