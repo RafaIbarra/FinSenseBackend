@@ -347,7 +347,7 @@ async def control_sesion(
         'nombre': usuario.NombreUsuario,
         'apellido': usuario.ApellidoUsuario,
         "fecha_registro": usuario.FechaRegistro.strftime("%d/%m/%Y %H:%M:%S"),
-        "msg":"Bienvenido"
+        "msg":f"Bienvenido {usuario.UserName}"
     }
     return respuesta
 
