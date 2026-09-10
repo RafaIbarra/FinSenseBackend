@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload, joinedload,load_only
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.MovimientosGastos import MovimientosGastos
@@ -11,53 +11,43 @@ from Models.ImagenesPendientes import ImagenesPendientes
 from Models.Empresas import Empresas
 from Models.CategoriasGastos import CategoriasGastos
 from Schemas.file_format_schemas import ExcelIvaFormat
+from Schemas.Respuestas import RespuestaFuncion
+
+from Utils.error_utils import limpiar_mensaje_error_bd
 
 async def datos_iva_mes(db: AsyncSession, id_usuario: int, anno: int, mes: int):
-    fecha_inicio = date(anno, mes, 1)
-    fecha_fin = date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
+    try:
+        fecha_inicio = date(anno, mes, 1)
+        fecha_fin = date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
 
-    result = await db.execute(
-        select(
-            MovimientosGastos.FechaRegistro,
-            MovimientosGastos.TotalGasto,
-            MovimientosGastos.IvaDiez,
-            MovimientosGastos.IvaCinco,
-            MovimientosGastos.FechaGasto.label("FechaFactura"),
-            MovimientosGastos.TipoRegistro,
-            MovimientosGastos.NumeroFactura,
-            Empresas.NombreEmpresa,
-            Empresas.Ruc.label("NumeroRuc"),
-            CategoriasGastos.NombreCategoria.label("Categoria"),
+        result = await db.execute(
+            select(
+                MovimientosGastos.FechaRegistro,
+                MovimientosGastos.TotalGasto,
+                MovimientosGastos.IvaDiez,
+                MovimientosGastos.IvaCinco,
+                MovimientosGastos.FechaGasto.label("FechaFactura"),
+                MovimientosGastos.TipoRegistro,
+                MovimientosGastos.NumeroFactura,
+                Empresas.NombreEmpresa,
+                Empresas.Ruc.label("NumeroRuc"),
+                CategoriasGastos.NombreCategoria.label("Categoria"),
+            )
+            .outerjoin(MovimientosGastos.empresa)
+            .outerjoin(MovimientosGastos.categoria)
+            .where(
+                MovimientosGastos.UsuarioId == id_usuario,
+                MovimientosGastos.FechaGasto >= fecha_inicio,
+                MovimientosGastos.FechaGasto < fecha_fin,
+            )
         )
-        .outerjoin(MovimientosGastos.empresa)
-        .outerjoin(MovimientosGastos.categoria)
-        .where(
-            MovimientosGastos.UsuarioId == id_usuario,
-            MovimientosGastos.FechaGasto >= fecha_inicio,
-            MovimientosGastos.FechaGasto < fecha_fin,
-        )
-    )
 
-    movimientos = result.mappings().all()
-    data_excel=[ExcelIvaFormat.model_validate(movimiento)for movimiento in movimientos]
+        movimientos = result.mappings().all()
+        data_excel=[ExcelIvaFormat.model_validate(movimiento)for movimiento in movimientos]
+        return RespuestaFuncion(data_registro=data_excel)
+    except Exception as exc:    
+        return RespuestaFuncion(success_registro=False,mensaje=limpiar_mensaje_error_bd(str(exc)))
     
-    # return [
-    #         {
-    #             "id": movimiento.Id,
-    #             "fecha_registro": movimiento.FechaRegistro.strftime("%d/%m/%y"),
-    #             "fecha_gasto": movimiento.FechaGasto.strftime("%d/%m/%y") if movimiento.FechaGasto else None,
-    #             "total_gasto": movimiento.TotalGasto,
-    #             "iva_diez": movimiento.IvaDiez,
-    #             "iva_cinco": movimiento.IvaCinco,
-    #             "tipo_registro": movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro),
-    #             "nombre_empresa": movimiento.empresa.NombreEmpresa if movimiento.empresa else None,
-    #             "ruc_empresa": movimiento.empresa.Ruc if movimiento.empresa else None,
-    #             "categoria": movimiento.categoria.NombreCategoria if movimiento.categoria else None,
-    #             "numero_factura": movimiento.NumeroFactura,
-             
-    #         }
-    #         for movimiento in movimientos
-    #     ]
 
 async def dashboard_usuario(db: AsyncSession, id_usuario: int, anno: int, mes: int):
     fecha_inicio = date(anno, mes, 1)

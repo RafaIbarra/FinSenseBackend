@@ -2,6 +2,11 @@ from typing import List
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pydantic import EmailStr
 from Config.settings import settings
+from io import BytesIO
+from fastapi import UploadFile
+from Schemas.Respuestas import RespuestaFuncion
+import tempfile
+from pathlib import Path
 # ── Configuración ──────────────────────────────────────────────
 # Ajusta estos valores según tu entorno (mejor en variables de entorno)
 EMAIL_CONF = ConnectionConfig(
@@ -163,3 +168,39 @@ async def enviar_correo(
 
     fm = FastMail(EMAIL_CONF)
     await fm.send_message(message, template_name=template_name)
+
+
+
+async def enviar_correo_con_adjunto(
+    destinatario: EmailStr,
+    asunto: str,
+    adjunto: BytesIO,
+    nombre_adjunto: str,
+    cuerpo: str = "Adjunto el archivo solicitado.",
+):
+    try:
+        # Asegurar que el puntero esté al inicio antes de leer
+        adjunto.seek(0)
+
+        # Guardar en un archivo temporal con SU nombre real (con extensión)
+        ruta_temporal = Path(tempfile.gettempdir()) / nombre_adjunto
+        ruta_temporal.write_bytes(adjunto.getvalue())
+
+        try:
+            message = MessageSchema(
+                subject=asunto,
+                recipients=[destinatario],
+                body=cuerpo,
+                subtype="plain",
+                attachments=[str(ruta_temporal)],   # ← path, no UploadFile
+            )
+            fm = FastMail(EMAIL_CONF)
+            await fm.send_message(message)
+        finally:
+            ruta_temporal.unlink(missing_ok=True)   # limpiar siempre
+
+        return RespuestaFuncion()
+    except Exception as e:
+        msg = f"Falló el envío del correo a {destinatario}: {str(e)}"
+        
+        return RespuestaFuncion(success_registro=False, mensaje=msg)
