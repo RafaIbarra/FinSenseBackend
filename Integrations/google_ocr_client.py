@@ -4,8 +4,8 @@ import json
 from pydantic import BaseModel
 from typing import List, Optional
 from Config.settings import settings
-from Repositories.errores_modelos import registro_error
-from Schemas.integrations_schemas import FacturaExtraida
+from Repositories.datos_modelos_repo import registro_error
+from Schemas.integrations_schemas import FacturaExtraida,StatsData
 
 GEMINI_API_KEY = settings.GEMINI_API_KEY
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -220,7 +220,7 @@ def _campo_vacio(valor) -> bool:
     return False
 
 
-async def _extraer_con_modelo(modelo: str, parts: list, time_out: int) -> FacturaExtraida:
+async def _extraer_con_modelo(modelo: str, parts: list, time_out: int)-> FacturaExtraida:
     """
     Intenta extraer los datos de la factura usando un modelo específico de Gemini.
     Lanza excepción si falla (JSON inválido o error de API), para que el llamador
@@ -250,21 +250,18 @@ async def _extraer_con_modelo(modelo: str, parts: list, time_out: int) -> Factur
     thoughts_tokens = usage.thoughts_token_count or 0
     total_tokens = usage.total_token_count or 0
     
-    # print(f"Modelo: {modelo}")
-    # print(f"Tokens entrada: {input_tokens}")
-    # print(f"Tokens salida: {output_tokens}")
-    # print(f"Tokens pensamiento: {thoughts_tokens}")
-    # print(f"Tokens total: {total_tokens}")
+    
     
     data = _limpiar_respuesta(response.text, model=modelo)  # puede lanzar json.JSONDecodeError
 
+    stats = StatsData(
+      input_tokens=input_tokens,
+      output_tokens=output_tokens,
+      thoughts_tokens=thoughts_tokens,
+      total_tokens=total_tokens,
+    )
+
     # Si los campos clave no fueron detectados (ej: la imagen no es una factura),
-    # no se acepta como resultado válido: se lanza una excepción para que
-    # extraer_factura pueda intentar con el siguiente modelo de la lista.
-    # Se consideran "vacíos" tanto None como placeholders típicos (""/"N/A"/etc.).
-    # Para "total" también se trata 0/0.0 como vacío, ya que un modelo puede devolver
-    # 0.0 en vez de null cuando no encuentra el monto (confirmado en logs con
-    # gemini-3.1-flash-lite en imágenes sin datos de factura).
     campos_texto_clave = ["empresa", "ruc_empresa", "fecha", "numero_factura"]
     todos_los_textos_vacios = all(_campo_vacio(data.get(campo)) for campo in campos_texto_clave)
     total_valor = data.get("total")
@@ -273,17 +270,17 @@ async def _extraer_con_modelo(modelo: str, parts: list, time_out: int) -> Factur
     if todos_los_textos_vacios and total_vacio:
         
         raise CamposNoDetectadosError("campos requeridos no detectados en la imagen")
+    
+    return FacturaExtraida(**data, stats=stats)
 
-    return FacturaExtraida(**data)
-
-async def extraer_factura(
+async def  extraer_factura(
     imagen_1: bytes,
     imagen_2: Optional[bytes] = None,
     mime_type_1: str = "image/jpeg",
     mime_type_2: str = "image/jpeg",
     time_out:int=0
     
-) -> FacturaExtraida:
+)-> FacturaExtraida:
     """
     Extrae datos de una factura desde una o dos imágenes usando Gemini.
 
@@ -306,6 +303,8 @@ async def extraer_factura(
         RuntimeError: Si NINGÚN modelo de la lista pudo responder (con el mensaje
                       del ÚLTIMO modelo intentado).
     """
+    
+
     parts = [types.Part(text=SYSTEM_PROMPT)]
 
     # Agregar primera imagen

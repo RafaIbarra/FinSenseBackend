@@ -139,6 +139,9 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             imagenes=imagenes_bytes,
             upload_file=False,
             time_out_model=180,
+            usuario_id=usuario_id,
+            origen="Jobs",
+            db=db,
         )
 
         if not resultado.procesamiento_correcto:

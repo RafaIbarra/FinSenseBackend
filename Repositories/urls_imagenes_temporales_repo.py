@@ -20,6 +20,16 @@ async def registrar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls
         formateado=ts.strftime("%Y_%m_%d_T_%H_%M_%S")
         codigo_proceso = f'U_{id_usuario}_F_{formateado}'
 
+        imagenes = [
+            (
+                imagen["url"],
+                imagen["size_bytes"],
+            ) if isinstance(imagen, dict) else (imagen, 0)
+            for imagen in list_urls
+        ]
+
+        list_urls = [imagen[0] for imagen in imagenes]
+
         db.add_all([
             UrlsImagenesTemporales(
                 CodigoProceso=codigo_proceso,
@@ -28,8 +38,9 @@ async def registrar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls
                 FechaProcesado=None,
                 PendienteEliminacion=True,
                 FechaEliminacion=None,
+                TamañoImagen=size_bytes,
             )
-            for url in list_urls
+            for url, size_bytes in imagenes
         ])
         await db.commit()
         return RespuestaFuncion()

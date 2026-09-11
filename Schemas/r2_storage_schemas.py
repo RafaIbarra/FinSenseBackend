@@ -1,6 +1,6 @@
 # Schemas/r2_storage_schemas.py
 from pydantic import BaseModel
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Dict, Union
 import enum
 
 
@@ -10,7 +10,7 @@ class TipoUrlEnum(enum.Enum):
 
 
 class RespuestaImagenesSubidas(BaseModel):
-    urls_img: List[str] = []
+    urls_img: List[Dict[str, Union[str, int]]] = []
     success: Optional[bool] = True
     mensaje_error_subida: str = ""
     tipo_url: Optional[TipoUrlEnum] = None

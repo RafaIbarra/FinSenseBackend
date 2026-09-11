@@ -2,7 +2,7 @@ from groq import AsyncGroq
 
 from typing import Optional, Dict
 from Config.settings import settings
-from Repositories.errores_modelos import registro_error
+from Repositories.datos_modelos_repo import registro_error
 from Schemas.integrations_schemas import ClasificacionGasto
 import json
 

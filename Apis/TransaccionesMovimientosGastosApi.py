@@ -85,7 +85,15 @@ async def extraer_clasificar(
             nombre = img.filename or "factura.jpg"
             imagenes_procesadas.append((contenido, mime, nombre))
         
-        respuesta = await procesar_imagen_factura(imagenes=imagenes_procesadas,upload_file=True, temp_url=True,time_out_model=180)
+        respuesta = await procesar_imagen_factura(
+            imagenes=imagenes_procesadas,
+            upload_file=True,
+            temp_url=True,
+            time_out_model=180,
+            usuario_id=id_usuario,
+            origen="Aplicacion",
+            db=db,
+        )
         
         
         if not respuesta.procesamiento_correcto and respuesta.solicita_envio_pendiente: #ERROR EN LA API DE MODELOS

@@ -15,7 +15,7 @@ class UrlsImagenesTemporales(Base):
     FechaProcesado = Column("FechaProcesado", DateTime(timezone=True), nullable=True)
     PendienteEliminacion = Column("PendienteEliminacion", Boolean, default=True, nullable=False)
     FechaEliminacion = Column("FechaEliminacion", DateTime(timezone=True), nullable=True)
-    
+    TamañoImagen = Column("TamañoImagen", Integer, nullable=True)
     
 
     usuario = relationship("Usuarios", back_populates="urls_imagenes_temporales")

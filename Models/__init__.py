@@ -16,7 +16,10 @@ from .UrlsImagenesTemporales import UrlsImagenesTemporales
 from .EnvioCorreos import EnvioCorreos
 from .Temas import Temas
 from .PreferenciasUsuario import PreferenciasUsuario
+from .EstadisticasModelos import EstadisticasModelos
+from .EstadisticasModelosDetalle import EstadisticasModelosDetalle
+from .EstadisticasModelosImagenes import EstadisticasModelosImagenes
 
 __all__ = ["Usuarios", "SesionesActivas", "Empresas", "CategoriasGastos", "EtiquetasGastos", "ConceptosGastos", 
            "MovimientosGastos", "MovimientosGastosImagenes", "MovimientosGastosEtiquetas", "MovimientosGastosConceptos",
-           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos", "Temas", "PreferenciasUsuario"]
+           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos", "Temas", "PreferenciasUsuario", "EstadisticasModelos", "EstadisticasModelosDetalle", "EstadisticasModelosImagenes"]

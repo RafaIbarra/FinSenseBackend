@@ -33,7 +33,10 @@ async def registrar_lista_imagenes(
             resultado = await registrar_imagen(file_bytes, file_name, temp_url)
 
             if resultado.get("success") and resultado.get("url"):
-                imagenes_subidas.append(resultado["url"])
+                imagenes_subidas.append({
+                    "url": resultado["url"],
+                    "size_bytes": len(file_bytes),
+                })
             else:
                 imagenes_errores.append(index)
                 mensaje_error = resultado.get("mensaje", "Error desconocido al subir imagen")
@@ -44,8 +47,9 @@ async def registrar_lista_imagenes(
 
     # Rollback: si hubo errores, eliminar las imágenes ya subidas
     if imagenes_errores and imagenes_subidas:
-        for url in imagenes_subidas:
+        for imagen in imagenes_subidas:
             try:
+                url = imagen["url"]
                 if not temp_url:
                     r2_storage.delete_gasto_image(url)
                 else:

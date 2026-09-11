@@ -1,6 +1,13 @@
 from pydantic import BaseModel,ConfigDict
 from typing import List, Optional
 
+class StatsData(BaseModel):
+    input_tokens: int =0
+    output_tokens :int =0
+    thoughts_tokens : int =0
+    total_tokens : int =0
+
+    
 class FacturaExtraida(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -15,6 +22,7 @@ class FacturaExtraida(BaseModel):
     fiabilidad: str = "Malo"  # Excelente, Bueno, Malo
     detalle: List[str] = []   # Conceptos/descripciones de los artículos
     Model: Optional[str] = None
+    stats: Optional[StatsData] = None
     success_registro: Optional[bool] = True
     mensaje_error:str=""
     data_correct: Optional[bool] = True
@@ -28,4 +36,6 @@ class ClasificacionGasto(BaseModel):
     categoria: str
     etiquetas: List[EtiquetaConConceptos] = [] 
     modelo_clasificador: str
+
+
 

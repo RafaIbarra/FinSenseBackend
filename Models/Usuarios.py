@@ -54,3 +54,9 @@ class Usuarios(Base):
         back_populates="usuario",
         cascade="all, delete-orphan",
     )
+
+    estadisticas_modelos = relationship(
+        "EstadisticasModelos",
+        back_populates="usuario",
+        cascade="all, delete-orphan",
+    )
