@@ -13,7 +13,7 @@ MODELS_FALLBACK = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-2
 MODEL_KWARGS = {
     "llama-3.1-8b-instant": {"max_tokens": 1500},
     "openai/gpt-oss-20b": {"max_tokens": 2000, "reasoning_effort": "none"},
-    "qwen/qwen3.6-27b": {"max_tokens": 2000, "reasoning_effort": "none"},
+    "qwen/qwen3.6-27b": {"max_tokens": 1000, "reasoning_effort": "none"},
 }
 DEFAULT_MODEL_KWARGS = {"max_tokens": 1500}
 
@@ -217,7 +217,12 @@ async def _clasificar_con_modelo(modelo: str, user_prompt: str, time_out: int) -
 
     raw = response.choices[0].message.content.strip()
     data = json.loads(raw)  # puede lanzar json.JSONDecodeError
+    usage = response.usage
 
+    # print(f"Modelo: {modelo}")
+    # print(f"Tokens entrada: {usage.prompt_tokens}")
+    # print(f"Tokens salida: {usage.completion_tokens}")
+    # print(f"Tokens total: {usage.total_tokens}")
     return _normalizar_respuesta(data, modelo)
 
 

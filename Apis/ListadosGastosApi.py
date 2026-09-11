@@ -5,7 +5,6 @@ from Config.settings import get_db
 from Common.routers_factory import generar_router
 from Common.rate_limit_middleware import rate_limit
 from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario,datos_iva_mes
-from Services.generacion_archivos_excel import generar_excel_mes
 from Services.envio_archivo_services import generar_y_enviar_excel_iva
 router_movimientos_listados = generar_router('/gastos-listados')
 
@@ -16,6 +15,20 @@ async def listar_movimiento_usuario(
 ):
     usuario_id = int(request.state.id_usuario)
     datos = await movimientos_usuario_gastos(db,usuario_id)
+    
+    return datos
+
+
+
+@router_movimientos_listados.get("/gastos-mes")
+async def listar_movimiento_usuario(
+    request: Request,
+    anno: int,
+    mes: int,
+    db: AsyncSession = Depends(get_db),
+):
+    usuario_id = int(request.state.id_usuario)
+    datos = await movimientos_usuario_gastos(db,usuario_id, mes, anno)
     
     return datos
         
@@ -33,6 +46,8 @@ async def listar_imagens_usuario(
         
         "datos":datos
     }
+
+
 @router_movimientos_listados.get("/dashboard-usuario")
 @rate_limit(max_requests=5, window_seconds=60)
 async def estadisticas(
@@ -54,7 +69,6 @@ async def estadisticas(
     }
 
 @router_movimientos_listados.get("/excel-iva-mes")
-
 async def generar_excel_iva_mes(
     request: Request,
     anno: int,

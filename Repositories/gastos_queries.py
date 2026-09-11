@@ -164,94 +164,132 @@ async def dashboard_usuario(db: AsyncSession, id_usuario: int, anno: int, mes: i
         "imagenes_pendientes_no_procesadas": pendientes_result.scalar_one(),
     }
 
-async def movimientos_usuario_gastos(db: AsyncSession, id_usuario: int):
-    result = await db.execute(
-        select(MovimientosGastos)
-        .where(MovimientosGastos.UsuarioId == id_usuario)
-        .options(
-            selectinload(MovimientosGastos.empresa),
-            selectinload(MovimientosGastos.categoria),
-            selectinload(MovimientosGastos.etiquetas).selectinload(
-                MovimientosGastosEtiquetas.etiqueta
-            ),
-            selectinload(MovimientosGastos.conceptos).selectinload(
-                MovimientosGastosConceptos.concepto
-            ),
-            selectinload(MovimientosGastos.conceptos).selectinload(
-                MovimientosGastosConceptos.etiqueta
-            ),
-            selectinload(MovimientosGastos.imagenes),
-            selectinload(MovimientosGastos.imagenes_pendientes),
+async def movimientos_usuario_gastos(
+    db: AsyncSession, id_usuario: int, mes: int = 0, anno: int = 0
+):
+    try: 
+        if anno < 0 or mes < 0:
+            return RespuestaFuncion(
+                success_registro=False,
+                mensaje="El año y el mes no pueden ser negativos.",
+            )
+        if mes > 0 and anno == 0:
+            return RespuestaFuncion(
+                success_registro=False,
+                mensaje="Debe indicar un año cuando especifica un mes.",
+            )
+        if anno > 0 and mes != 0 and not 1 <= mes <= 12:
+            return RespuestaFuncion(
+                success_registro=False,
+                mensaje="El mes debe estar entre 1 y 12.",
+            )
+
+        filtros = [MovimientosGastos.UsuarioId == id_usuario]
+        if anno > 0:
+            fecha_inicio = date(anno, mes or 1, 1)
+            fecha_fin = (
+                date(anno + 1, 1, 1)
+                if mes == 0
+                else date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
+            )
+            filtros.extend(
+                [
+                    MovimientosGastos.FechaGasto >= fecha_inicio,
+                    MovimientosGastos.FechaGasto < fecha_fin,
+                ]
+            )
+
+        result = await db.execute(
+            select(MovimientosGastos)
+            .where(*filtros)
+            .options(
+                selectinload(MovimientosGastos.empresa),
+                selectinload(MovimientosGastos.categoria),
+                selectinload(MovimientosGastos.etiquetas).selectinload(
+                    MovimientosGastosEtiquetas.etiqueta
+                ),
+                selectinload(MovimientosGastos.conceptos).selectinload(
+                    MovimientosGastosConceptos.concepto
+                ),
+                selectinload(MovimientosGastos.conceptos).selectinload(
+                    MovimientosGastosConceptos.etiqueta
+                ),
+                selectinload(MovimientosGastos.imagenes),
+                selectinload(MovimientosGastos.imagenes_pendientes),
+            )
+            .order_by(MovimientosGastos.FechaRegistro.desc())
         )
-        .order_by(MovimientosGastos.FechaRegistro.desc())
-    )
-    movimientos = result.scalars().all()
+        movimientos = result.scalars().all()
 
-    def formatear_fecha(fecha):
-        return fecha.strftime("%d/%m/%y %H:%M:%S") if fecha else None
+        def formatear_fecha(fecha):
+            return fecha.strftime("%d/%m/%y %H:%M:%S") if fecha else None
 
-    def tareas_procesadas(movimiento):
-        tipo_registro = movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro)
-        if tipo_registro != "Automatico":
-            return []
+        def tareas_procesadas(movimiento):
+            tipo_registro = movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro)
+            if tipo_registro != "Automatico":
+                return []
 
-        tareas = {}
-        for imagen in movimiento.imagenes_pendientes:
-            if imagen.Procesado and imagen.CodigoTarea not in tareas:
-                tareas[imagen.CodigoTarea] = {
-                    "codigo_tarea": imagen.CodigoTarea,
-                    "fecha_procesado": imagen.FechaProcesado.strftime("%d/%m/%Y %H:%M:%S") if imagen.FechaProcesado else None,
-                }
-        return list(tareas.values())
+            tareas = {}
+            for imagen in movimiento.imagenes_pendientes:
+                if imagen.Procesado and imagen.CodigoTarea not in tareas:
+                    tareas[imagen.CodigoTarea] = {
+                        "codigo_tarea": imagen.CodigoTarea,
+                        "fecha_procesado": imagen.FechaProcesado.strftime("%d/%m/%Y %H:%M:%S") if imagen.FechaProcesado else None,
+                    }
+            return list(tareas.values())
 
-    return [
-        {
-            "id": movimiento.Id,
-            "fecha_registro": formatear_fecha(movimiento.FechaRegistro),
-            "fecha_gasto": movimiento.FechaGasto.strftime("%d/%m/%y") if movimiento.FechaGasto else None,
-            "total_gasto": movimiento.TotalGasto,
-            "iva_diez": movimiento.IvaDiez,
-            "iva_cinco": movimiento.IvaCinco,
-            "tipo_registro": movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro),
-            "categoria_id": movimiento.CategoriaId,
-            "empresa_id": movimiento.EmpresaId,
-            "empresa": {
-                "id": movimiento.empresa.Id,
-                "nombre": movimiento.empresa.NombreEmpresa,
-                "ruc": movimiento.empresa.Ruc,
-                "url_logo": movimiento.empresa.UrlLogo,
-            } if movimiento.empresa else None,
-            "categoria": {
-                "id": movimiento.categoria.Id,
-                "nombre": movimiento.categoria.NombreCategoria,
-            } if movimiento.categoria else None,
-            "numero_factura": movimiento.NumeroFactura,
-            "modelo_extraccion_datos": movimiento.ModeloExtraccionDatos,
-            "modelo_clasificador": movimiento.ModeloClasificador,
-            "tareas_procesadas": tareas_procesadas(movimiento),
-            "etiquetas": [
-                {
-                    "idetiqueta": enlace.EtiquetaId,
-                    "nombre": enlace.etiqueta.NombreEtiqueta,
-                }
-                for enlace in movimiento.etiquetas
-            ],
-            "conceptos": [
-                {
-                    "idconcepto": enlace.ConceptoId,
-                    "nombre": enlace.concepto.NombreConcepto,
-                    "etiqueta": {
-                        "id": enlace.EtiquetaId,
+        data= [
+            {
+                "id": movimiento.Id,
+                "fecha_registro": formatear_fecha(movimiento.FechaRegistro),
+                "fecha_gasto": movimiento.FechaGasto.strftime("%d/%m/%y") if movimiento.FechaGasto else None,
+                "total_gasto": movimiento.TotalGasto,
+                "iva_diez": movimiento.IvaDiez,
+                "iva_cinco": movimiento.IvaCinco,
+                "tipo_registro": movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro),
+                "categoria_id": movimiento.CategoriaId,
+                "empresa_id": movimiento.EmpresaId,
+                "empresa": {
+                    "id": movimiento.empresa.Id,
+                    "nombre": movimiento.empresa.NombreEmpresa,
+                    "ruc": movimiento.empresa.Ruc,
+                    "url_logo": movimiento.empresa.UrlLogo,
+                } if movimiento.empresa else None,
+                "categoria": {
+                    "id": movimiento.categoria.Id,
+                    "nombre": movimiento.categoria.NombreCategoria,
+                } if movimiento.categoria else None,
+                "numero_factura": movimiento.NumeroFactura,
+                "modelo_extraccion_datos": movimiento.ModeloExtraccionDatos,
+                "modelo_clasificador": movimiento.ModeloClasificador,
+                "tareas_procesadas": tareas_procesadas(movimiento),
+                "etiquetas": [
+                    {
+                        "idetiqueta": enlace.EtiquetaId,
                         "nombre": enlace.etiqueta.NombreEtiqueta,
-                    } if enlace.etiqueta else None,
-                }
-                for enlace in movimiento.conceptos
-            ],
-            "imagenes": [imagen.UrlImagen for imagen in movimiento.imagenes],
-        }
-        for movimiento in movimientos
-    ]
+                    }
+                    for enlace in movimiento.etiquetas
+                ],
+                "conceptos": [
+                    {
+                        "idconcepto": enlace.ConceptoId,
+                        "nombre": enlace.concepto.NombreConcepto,
+                        "etiqueta": {
+                            "id": enlace.EtiquetaId,
+                            "nombre": enlace.etiqueta.NombreEtiqueta,
+                        } if enlace.etiqueta else None,
+                    }
+                    for enlace in movimiento.conceptos
+                ],
+                "imagenes": [imagen.UrlImagen for imagen in movimiento.imagenes],
+            }
+            for movimiento in movimientos
+        ]
+        return RespuestaFuncion(data_registro=data)
+    except Exception as exc:    
+        return RespuestaFuncion(success_registro=False,mensaje=limpiar_mensaje_error_bd(str(exc)))
 
+    
 async def listar_imagenes_pendientes_usuario(db: AsyncSession, id_usuario: int):
     result = await db.execute(
         select(ImagenesPendientes)

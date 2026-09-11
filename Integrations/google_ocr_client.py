@@ -243,6 +243,18 @@ async def _extraer_con_modelo(modelo: str, parts: list, time_out: int) -> Factur
             http_options=types.HttpOptions(timeout=time_out * 1000)  # segundos -> milisegundos
         ),
     )
+    usage = response.usage_metadata
+
+    input_tokens = usage.prompt_token_count or 0
+    output_tokens = usage.candidates_token_count or 0
+    thoughts_tokens = usage.thoughts_token_count or 0
+    total_tokens = usage.total_token_count or 0
+    
+    # print(f"Modelo: {modelo}")
+    # print(f"Tokens entrada: {input_tokens}")
+    # print(f"Tokens salida: {output_tokens}")
+    # print(f"Tokens pensamiento: {thoughts_tokens}")
+    # print(f"Tokens total: {total_tokens}")
     
     data = _limpiar_respuesta(response.text, model=modelo)  # puede lanzar json.JSONDecodeError
 
