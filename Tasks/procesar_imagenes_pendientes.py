@@ -81,7 +81,10 @@ async def obtener_tareas_pendientes(db):
                 "ids": [],
             },
         )
-        tarea["imagenes"].append(registro.UrlImagen)
+        tarea["imagenes"].append({
+            "url": registro.UrlImagen,
+            "size_bytes": registro.TamañoImagen,
+        })
         tarea["ids"].append(registro.Id)
 
     return list(tareas.values())
@@ -129,7 +132,8 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
         paso_actual = "1. Descargar imágenes"
         print(f" --> {paso_actual}")
         imagenes_bytes: List[Tuple[bytes, str, str]] = []
-        for url in urls:
+        for imagen in urls:
+            url = imagen["url"] if isinstance(imagen, dict) else imagen
             img = await descargar_imagen(url)
             imagenes_bytes.append(img)
 
@@ -240,6 +244,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             "etiquetas": ids_etiquetas,
             "model_img": factura.Model,
             "model_clasificador": clasificacion.modelo_clasificador,
+            "id_stas":resultado.id_stats
         }
 
         registro_gasto = await registrar(db, movimiento_data)

@@ -37,8 +37,7 @@ async def procesar_imagen_factura(
         imagen_2, mime_type_2, filename_2 = imagenes[1]
 
     
-    size_img_uno = len(imagen_1)
-    size_img_dos = len(imagen_2) if imagen_2 else 0
+    
 
     try:
         origen_enum = OrigenEstadisticaEnum(origen)

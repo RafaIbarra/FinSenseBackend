@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Text, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Text, Boolean,text
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -23,6 +23,14 @@ class ImagenesPendientes(Base):
         ForeignKey("MovimientosGastos.Id"),
         nullable=True,
         index=True
+    )
+
+    TamañoImagen = Column(
+        "TamañoImagen",
+        Integer,
+        nullable=True,
+        default=0,
+        server_default=text("0")
     )
 
     usuario = relationship("Usuarios", back_populates="imagenes_pendientes")

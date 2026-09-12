@@ -47,11 +47,14 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
             list_urls = list_urls if isinstance(list_urls, list) else [list_urls]
             for index, img in enumerate(list_urls[:2], start=1):
                 try:
+                    url_imagen = img["url"] if isinstance(img, dict) else img
+                    size_bytes = img.get("size_bytes", 0) if isinstance(img, dict) else 0
                     imagen = ImagenesPendientes(
                     CodigoTarea=codigo_tarea,
-                        UrlImagen=img,
+                        UrlImagen=url_imagen,
                         UsuarioId=id_usuario,
                         Motivo=motivo,
+                        TamañoImagen=size_bytes,
                     )
                     db.add(imagen)
 
@@ -65,7 +68,8 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
         
         for ur in list_urls:
             try:
-                r2_storage.delete_gasto_image(ur)
+                url_imagen = ur["url"] if isinstance(ur, dict) else ur
+                r2_storage.delete_gasto_image(url_imagen)
             except Exception:
                 pass
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
