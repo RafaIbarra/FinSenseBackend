@@ -9,9 +9,12 @@ from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
+from Models.EstadisticasModelos import EstadoEstadisticaEnum
 from Repositories.urls_imagenes_temporales_repo import procesar_urls_temporales
+from Repositories.datos_modelos_repo import actualizar_stast
 from Integrations.r2_storage import *
 from Schemas.Respuestas import RespuestaFuncion
+from Schemas.repos_schemas import ActualizarEstadisticas
 from Utils.error_utils import limpiar_mensaje_error_bd
 
 
@@ -216,45 +219,72 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 )
 
             # Las imagenes se procesan y comitean en su propia transaccion
+            urls_actualizar=[]
             if imagenes:
-                imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
+                if isinstance(imagenes, dict):
+                    type_url = imagenes.get("tipo_url", type_url)
+                    imagenes = imagenes.get("urls_img", [])
+
+                imagenes = [
+                    imagen if isinstance(imagen, dict) else {"url": imagen, "size_bytes": 0}
+                    for imagen in imagenes
+                ]
                 type_url_valor = getattr(type_url, 'value', type_url)
 
                 if type_url_valor == "Temporal":
                     urls_procesadas = []
                     urls_eliminadas = []
-                    for img_url in imagenes[:2]:
+                    for imagen_data in imagenes[:2]:
+                        img_url = imagen_data.get("url", "")
                         resultado = r2_storage.move_between_buckets(
                             source_url=img_url,
                             source_bucket=r2_storage.bucket_temporales,
                             dest_bucket=r2_storage.bucket_gastos,
                         )
                         if resultado.get("success"):
-                            urls_procesadas.append(resultado.get("url"))
+                            url_permanente = resultado.get("url")
+                            urls_procesadas.append({
+                                "url": url_permanente,
+                                "size_bytes": imagen_data.get("size_bytes", 0),
+                            })
                             urls_eliminadas.append(img_url)
+                            urls_actualizar.append({
+                                "url_temporal": img_url,
+                                "urls_permanente": url_permanente,
+                                
+                            })
                     if urls_eliminadas:
                         await procesar_urls_temporales(db, usuario_id, urls_eliminadas)
                         imagenes = urls_procesadas
 
-                for index, img in enumerate(imagenes[:2], start=1):
+                for index, imagen_data in enumerate(imagenes[:2], start=1):
                     try:
                         imagen = MovimientosGastosImagenes(
-                            UrlImagen=img or "",
+                            UrlImagen=imagen_data.get("url", "") or "",
                             ReferenciaCola="",
                             MovimientoGastoId=nuevo_movimiento.Id,
-                            ErrorUploadImg=""
+                            ErrorUploadImg="",
+                            TamañoImagen=imagen_data.get("size_bytes", 0),
                         )
                         db.add(imagen)
                     except Exception as exc:
                         print(f'Error procesando imagen {index}: {exc}')
 
                 await db.commit()
+            estadistica_id=movimiento.get("id_stas", 0)
 
+            if estadistica_id >0:
+                upd_stas=ActualizarEstadisticas(
+                    id=estadistica_id,
+                    estado=EstadoEstadisticaEnum.Registrada,
+                    imagenes=urls_actualizar,
+                )
+                resultado_actualizar = await actualizar_stast(upd_stas)
             return RespuestaFuncion(data_registro=nuevo_movimiento)
 
     except Exception as e:
         await db.rollback()
-        print(limpiar_mensaje_error_bd(str(e)))
+        
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))   
 
     

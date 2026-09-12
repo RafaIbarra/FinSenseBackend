@@ -20,5 +20,7 @@ class RespuestaProcesamientoImgFacturas(BaseModel):
     imagenes:Optional[RespuestaImagenesSubidas]=None
     solicita_envio_pendiente:Optional[bool] = True
     tipo_registro: Optional[TipoRegistroEnum] = None
+    id_stats: int=0
     mensaje_error:str=""
+   
     

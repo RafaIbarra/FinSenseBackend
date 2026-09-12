@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Text, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Text, Boolean,text
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -16,7 +16,13 @@ class UrlsImagenesTemporales(Base):
     PendienteEliminacion = Column("PendienteEliminacion", Boolean, default=True, nullable=False)
     FechaEliminacion = Column("FechaEliminacion", DateTime(timezone=True), nullable=True)
     TamañoImagen = Column("TamañoImagen", Integer, nullable=True)
-    
+    IdEstadistica = Column(
+        "IdEstadistica",
+        Integer,
+        nullable=True,
+        default=0,
+        server_default=text("0")
+    )
 
     usuario = relationship("Usuarios", back_populates="urls_imagenes_temporales")
     

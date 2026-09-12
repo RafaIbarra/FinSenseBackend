@@ -3,7 +3,7 @@ from groq import AsyncGroq
 from typing import Optional, Dict
 from Config.settings import settings
 from Repositories.datos_modelos_repo import registro_error
-from Schemas.integrations_schemas import ClasificacionGasto
+from Schemas.integrations_schemas import ClasificacionGasto,StatsData
 import json
 
 GROQ_API_KEY = settings.GROQ_API_KEY
@@ -145,7 +145,7 @@ def _construir_user_prompt(data_clasificacion: Dict) -> str:
     return "\n\n".join(partes)
 
 
-def _normalizar_respuesta(data: dict, modelo: str) -> ClasificacionGasto:
+def _normalizar_respuesta(data: dict, modelo: str,stats: StatsData=[]) -> ClasificacionGasto:
     categoria_raw = (data.get("categoria") or "").strip()
     if not categoria_raw:
         categoria = CATEGORIA_DEFAULT
@@ -192,6 +192,7 @@ def _normalizar_respuesta(data: dict, modelo: str) -> ClasificacionGasto:
         categoria=categoria,
         etiquetas=etiquetas,
         modelo_clasificador=modelo,
+        stats=stats
     )
 
 
@@ -223,7 +224,13 @@ async def _clasificar_con_modelo(modelo: str, user_prompt: str, time_out: int) -
     # print(f"Tokens entrada: {usage.prompt_tokens}")
     # print(f"Tokens salida: {usage.completion_tokens}")
     # print(f"Tokens total: {usage.total_tokens}")
-    return _normalizar_respuesta(data, modelo)
+    stats = StatsData(
+          input_tokens=usage.prompt_tokens,
+          output_tokens=usage.completion_tokens,
+          
+          total_tokens=usage.total_tokens,
+        )
+    return _normalizar_respuesta(data, modelo,stats)
 
 
 async def clasificar_gasto(data_clasificacion: Dict, time_out: int) -> ClasificacionGasto:

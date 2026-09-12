@@ -8,7 +8,7 @@ from Utils.error_utils import limpiar_mensaje_error_bd
 from Integrations.r2_storage import *
 
 
-async def registrar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls: List[str]):
+async def registrar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls: List[str],id_stats: int =0):
     try:
         if not id_usuario:
             return RespuestaFuncion(success_registro=False, mensaje="El usuario es obligatorio")
@@ -39,6 +39,7 @@ async def registrar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls
                 PendienteEliminacion=True,
                 FechaEliminacion=None,
                 TamañoImagen=size_bytes,
+                IdEstadistica=id_stats
             )
             for url, size_bytes in imagenes
         ])

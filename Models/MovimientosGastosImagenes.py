@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func,Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func,Text,text
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -14,3 +14,10 @@ class MovimientosGastosImagenes(Base):
     MovimientoGastoId = Column("MovimientoGastoId", Integer, ForeignKey("MovimientosGastos.Id"), nullable=False, index=True)
     ErrorUploadImg=Column("ErrorUploadImg", Text, nullable=True)
     movimiento_gasto = relationship("MovimientosGastos", back_populates="imagenes")
+    TamañoImagen = Column(
+    "TamañoImagen",
+    Integer,
+    nullable=True,
+    default=0,
+    server_default=text("0")
+)

@@ -36,6 +36,7 @@ class ClasificacionGasto(BaseModel):
     categoria: str
     etiquetas: List[EtiquetaConConceptos] = [] 
     modelo_clasificador: str
+    stats: Optional[StatsData] = None
 
 
 

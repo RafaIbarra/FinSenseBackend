@@ -106,7 +106,7 @@ async def extraer_clasificar(
         
         
         lista_urls=respuesta.imagenes.urls_img
-        registro_urls_temporales=await registrar_urls_temporales(db,id_usuario,lista_urls)
+        registro_urls_temporales=await registrar_urls_temporales(db,id_usuario,lista_urls,respuesta.id_stats)
 
         if  not registro_urls_temporales.success_registro:
             raise HTTPException(
@@ -130,7 +130,8 @@ async def extraer_clasificar(
             "factura": respuesta.factura,
             "clasificacion": respuesta.clasificacion,
             "imagenes": respuesta.imagenes,
-            "tipo_registro":TipoRegistroEnum.Asistido
+            "tipo_registro":TipoRegistroEnum.Asistido,
+            'id_stas':respuesta.id_stats
             
         }
         return data_respuesta
@@ -156,6 +157,7 @@ async def registro(
         id_usuario = int(request.state.id_usuario)
         factura = body.factura
         id=int(body.id)
+        id_stas=int(body.id_stas)
         # ── 1. VALIDACIÓN DE FACTURA ──
         if not factura.data_correct:
             raise HTTPException(
@@ -247,6 +249,7 @@ async def registro(
             "etiquetas": ids_etiquetas,
             "model_img": factura.Model,
             "model_clasificador": body.clasificacion.modelo_clasificador,
+            "id_stas":id_stas
         }
         
         
