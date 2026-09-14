@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, with_loader_criteria
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.MovimientosGastos import MovimientosGastos
@@ -37,6 +37,7 @@ async def datos_iva_mes(db: AsyncSession, id_usuario: int, anno: int, mes: int):
             .outerjoin(MovimientosGastos.categoria)
             .where(
                 MovimientosGastos.UsuarioId == id_usuario,
+                MovimientosGastos.IsActive.is_(True),
                 MovimientosGastos.FechaGasto >= fecha_inicio,
                 MovimientosGastos.FechaGasto < fecha_fin,
             )
@@ -57,6 +58,7 @@ async def dashboard_usuario(db: AsyncSession, id_usuario: int, anno: int, mes: i
         select(MovimientosGastos)
         .where(
             MovimientosGastos.UsuarioId == id_usuario,
+            MovimientosGastos.IsActive.is_(True),
             MovimientosGastos.FechaGasto >= fecha_inicio,
             MovimientosGastos.FechaGasto < fecha_fin,
         )
@@ -184,7 +186,10 @@ async def movimientos_usuario_gastos(
                 mensaje="El mes debe estar entre 1 y 12.",
             )
 
-        filtros = [MovimientosGastos.UsuarioId == id_usuario]
+        filtros = [
+            MovimientosGastos.UsuarioId == id_usuario,
+            MovimientosGastos.IsActive.is_(True),
+        ]
         if anno > 0:
             fecha_inicio = date(anno, mes or 1, 1)
             fecha_fin = (
@@ -295,6 +300,10 @@ async def listar_imagenes_pendientes_usuario(db: AsyncSession, id_usuario: int):
         select(ImagenesPendientes)
         .where(ImagenesPendientes.UsuarioId == id_usuario)
         .options(
+            with_loader_criteria(
+                MovimientosGastos,
+                MovimientosGastos.IsActive.is_(True),
+            ),
             selectinload(ImagenesPendientes.movimiento).selectinload(
                 MovimientosGastos.categoria
             ),

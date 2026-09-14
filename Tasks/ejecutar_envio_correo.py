@@ -8,12 +8,12 @@ from Config.settings import AsyncSessionLocal
 from Repositories.envio_correo_repo import obtener_envios_pendientes, procesar_envio_correo
 
 
-async def ejecutar_envios_pendientes():
+async def ejecutar_envios_pendientes( id_correo:int =0):
     print("\n=== INICIO DEL PROCESO DE ENVÍO DE CORREOS ===")
 
     async with AsyncSessionLocal() as db:
         print(" --> 1. Obteniendo correos pendientes")
-        respuesta = await obtener_envios_pendientes(db)
+        respuesta = await obtener_envios_pendientes(db,id_correo)
 
         if not respuesta.success_registro:
             print(f"❌ Error al obtener correos pendientes: {respuesta.mensaje}")
@@ -42,4 +42,4 @@ async def ejecutar_envios_pendientes():
 if __name__ == "__main__":
     import asyncio
 
-    asyncio.run(ejecutar_envios_pendientes())
+    asyncio.run(ejecutar_envios_pendientes(0))

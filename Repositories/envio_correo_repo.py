@@ -74,17 +74,21 @@ async def registro_envio_correo(db: AsyncSession, correo: dict):
         await db.commit()
         await db.refresh(registro)
 
-        return RespuestaFuncion(data_registro=registro)
+        return RespuestaFuncion(data_registro=registro.Id)
 
     except Exception as e:
         await db.rollback()
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
 
 
-async def obtener_envios_pendientes(db: AsyncSession):
+async def obtener_envios_pendientes(db: AsyncSession, id_correo: int = 0):
     try:
+        filtros = [EnvioCorreos.Procesado.is_(False)]
+        if id_correo:
+            filtros.append(EnvioCorreos.Id == id_correo)
+
         result = await db.execute(
-            select(EnvioCorreos).where(EnvioCorreos.Procesado.is_(False)).order_by(EnvioCorreos.FechaRegistro.asc())
+            select(EnvioCorreos).where(*filtros).order_by(EnvioCorreos.FechaRegistro.asc())
         )
         return RespuestaFuncion(data_registro=result.scalars().all())
     except Exception as e:

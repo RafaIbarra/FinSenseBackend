@@ -15,6 +15,7 @@ class EstadoEstadisticaEnum(enum.Enum):
     Pendiente = "Pendiente"
     Registrada = "Registrada"
     Descartada = "Descartada"
+    Procesada = "Procesada"
 
 
 
@@ -27,7 +28,17 @@ class EstadisticasModelos(Base):
     Estado = Column("Estado", SQLEnum(EstadoEstadisticaEnum, name="estadoestadisticaenum"), nullable=False)
     FechaRegistro = Column("FechaRegistro", DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Nuevo campo
+    IdMovimiento = Column(
+        "IdMovimiento",
+        Integer,
+        ForeignKey("MovimientosGastos.Id"),
+        nullable=True,      # <- clave: NULL = "sin vincular todavía"
+        index=True,         # <- acelera consultas cuando ya está vinculado
+    )
+
     usuario = relationship("Usuarios", back_populates="estadisticas_modelos")
+    movimiento = relationship("MovimientosGastos", back_populates="estadisticas_modelos")
     detalles = relationship(
         "EstadisticasModelosDetalle",
         back_populates="estadistica_modelo",

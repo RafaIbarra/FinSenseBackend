@@ -26,6 +26,7 @@ from Services.img_factura_services import procesar_imagen_factura
 from Services.email_service import RegistroPendienteData, enviar_correo_registro_pendiente
 from DataTest.data import DATA_RESUMEN
 from Utils.error_utils import limpiar_mensaje_error_bd
+from Tasks.ejecutar_envio_correo import ejecutar_envios_pendientes
 async def descargar_imagen(url: str) -> Tuple[bytes, str, str]:
     """Descarga una imagen desde URL y devuelve (bytes, content_type, filename)."""
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
@@ -84,6 +85,7 @@ async def obtener_tareas_pendientes(db):
         tarea["imagenes"].append({
             "url": registro.UrlImagen,
             "size_bytes": registro.TamañoImagen,
+            "success":True
         })
         tarea["ids"].append(registro.Id)
 
@@ -135,7 +137,8 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
         for imagen in urls:
             url = imagen["url"] if isinstance(imagen, dict) else imagen
             img = await descargar_imagen(url)
-            imagenes_bytes.append(img)
+            size_bytes = imagen["size_bytes"] if isinstance(imagen, dict) else imagen
+            imagenes_bytes.append((*img, url, str(size_bytes)))
 
         paso_actual = "2. Extraer y clasificar"
         print(f" --> {paso_actual}")
@@ -256,6 +259,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
         await marcar_estado(db, ids_pendientes, True, "", id_reg, fecha_procesado)
         print(f"[TAREA {codigo_tarea}] Movimiento registrado: {id_reg}")
         return id_reg
+        
 
     except Exception as exc:
         import traceback
@@ -271,11 +275,11 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
 async def main():
     # resumen = DATA_RESUMEN
     resumen = {}
-
+    respuesta_correos=[]
     async with AsyncSessionLocal() as db:
         tareas = await obtener_tareas_pendientes(db)
         print(f"Tareas pendientes encontradas: {len(tareas)}")
-
+        
         for tarea in tareas:
             fecha_procesado = datetime.now()
             usuario_id = str(tarea["usuario_id"])
@@ -324,15 +328,18 @@ async def main():
                 respuesta = await registro_envio_correo(db, correo)
                 if respuesta.success_registro:
                     print(f"[CORREO] Correo registrado para usuario {usuario_id}.")
+                    respuesta_correos.append(respuesta.data_registro)
                 else:
                     print(
                         f"[CORREO] No se pudo registrar correo para usuario {usuario_id}: {respuesta.mensaje}"
                     )
         else:
             print("NO HAY DATOS QUE NOTIFICAR")
-    
-    # print("\n=== RESUMEN ===")
-    # print(json.dumps(resumen, indent=2, ensure_ascii=False))
+    if respuesta_correos:
+        for x in respuesta_correos:
+            await ejecutar_envios_pendientes(x)
+    print("\n=== RESUMEN ===")
+    print(json.dumps(resumen, indent=2, ensure_ascii=False))
     
     print("\n=== FIN DEL PROCESO ===")
     return resumen

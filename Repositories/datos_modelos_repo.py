@@ -41,6 +41,7 @@ async def registro_stast(valores_reg: RegistroEstadisticas):
                 UsuarioId=valores_reg.usuario_id,
                 Origen=valores_reg.origen,
                 Estado=EstadoEstadisticaEnum.Pendiente,
+                IdMovimiento=None,
                 detalles=[
                     EstadisticasModelosDetalle(
                         TipoOperacion=detalle.tipo_operacion,
@@ -95,7 +96,7 @@ async def actualizar_stast(valores_upd: ActualizarEstadisticas):
                 )
 
             estadistica.Estado = valores_upd.estado
-
+            estadistica.IdMovimiento=valores_upd.id_movimiento
             if valores_upd.estado == EstadoEstadisticaEnum.Registrada:
                 imagenes_por_url = {
                     imagen.url_temporal: imagen.urls_permanente
@@ -109,6 +110,7 @@ async def actualizar_stast(valores_upd: ActualizarEstadisticas):
 
             return RespuestaFuncion(data_registro=estadistica.Id)
         except Exception as error:
+            
             await db.rollback()
             return RespuestaFuncion(
                 success_registro=False,

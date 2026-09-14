@@ -83,7 +83,7 @@ async def extraer_clasificar(
             contenido = await img.read()
             mime = img.content_type or "image/jpeg"
             nombre = img.filename or "factura.jpg"
-            imagenes_procesadas.append((contenido, mime, nombre))
+            imagenes_procesadas.append((contenido, mime, nombre,'',''))
         
         respuesta = await procesar_imagen_factura(
             imagenes=imagenes_procesadas,

@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.CategoriasGastos import CategoriasGastos
 from Models.Empresas import Empresas
-from Models.ImagenesPendientes import ImagenesPendientes
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
@@ -28,6 +27,131 @@ async def obtener_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: i
         )
     )
     return result.scalars().first()
+
+
+def _normalizar_imagenes(imagenes, type_url):
+    """Deja 'imagenes' siempre como lista de dicts {url, size_bytes} y resuelve
+    el valor real de 'type_url', sea que vengan sueltos o dentro de un dict
+    {tipo_url, urls_img}."""
+    if isinstance(imagenes, dict):
+        type_url = imagenes.get("tipo_url", type_url)
+        imagenes = imagenes.get("urls_img", [])
+
+    imagenes = [
+        imagen if isinstance(imagen, dict) else {"url": imagen, "size_bytes": 0}
+        for imagen in imagenes
+    ]
+    type_url_valor = getattr(type_url, "value", type_url)
+    return imagenes, type_url_valor
+
+
+async def _procesar_imagenes_temporales(
+    db: AsyncSession,
+    usuario_id: int,
+    imagenes: list,
+    mover_a_permanente: bool,
+):
+    """Procesa (hasta 2) imagenes temporales.
+
+    - mover_a_permanente=True: se usa al registrar un movimiento nuevo. Mueve
+      cada imagen del bucket temporal al bucket definitivo de gastos y arma
+      'urls_actualizar' con el detalle para la estadistica asociada.
+    - mover_a_permanente=False: se usa cuando la factura ya existe (no se va a
+      crear/actualizar el movimiento). Solo elimina las temporales, sin moverlas.
+
+    Devuelve (imagenes_resultantes, urls_actualizar).
+    """
+    urls_procesadas = []
+    urls_eliminadas = []
+    urls_actualizar = []
+    update_procesada=True
+    for imagen_data in imagenes[:2]:
+        img_url = imagen_data.get("url", "")
+
+        if mover_a_permanente:
+            resultado = r2_storage.move_between_buckets(
+                source_url=img_url,
+                source_bucket=r2_storage.bucket_temporales,
+                dest_bucket=r2_storage.bucket_gastos,
+            )
+            if resultado.get("success"):
+                url_permanente = resultado.get("url")
+                urls_procesadas.append({
+                    "url": url_permanente,
+                    "size_bytes": imagen_data.get("size_bytes", 0),
+                })
+                urls_eliminadas.append(img_url)
+                urls_actualizar.append({
+                    "url_temporal": img_url,
+                    "urls_permanente": url_permanente,
+                })
+        else:
+            resultado = r2_storage.delete_temp_image(img_url)
+            update_procesada=False
+            if resultado.get("success"):
+                urls_eliminadas.append(img_url)
+
+    if urls_eliminadas:
+        await procesar_urls_temporales(db, usuario_id, urls_eliminadas,update_procesada)
+
+    imagenes_resultantes = urls_procesadas if mover_a_permanente else imagenes
+    return imagenes_resultantes, urls_actualizar
+
+
+async def _gestionar_imagenes(
+    db: AsyncSession,
+    usuario_id: int,
+    imagenes,
+    type_url,
+    mover_a_permanente: bool,
+):
+    """Normaliza 'imagenes' y, si corresponde ('Temporal'), las procesa.
+
+    Devuelve (imagenes_resultantes, urls_actualizar). Si no hay imagenes,
+    devuelve ([], []) sin hacer nada mas.
+    """
+    if not imagenes:
+        return [], []
+
+    imagenes, type_url_valor = _normalizar_imagenes(imagenes, type_url)
+
+    urls_actualizar = []
+    if type_url_valor == "Temporal":
+        imagenes, urls_actualizar = await _procesar_imagenes_temporales(
+            db, usuario_id, imagenes, mover_a_permanente,
+        )
+
+    return imagenes, urls_actualizar
+
+
+async def _actualizar_estadistica_si_corresponde(
+    movimiento: dict,
+    urls_actualizar: list,
+    id_movimiento: int = None,
+):
+    """Si el movimiento trae 'id_stas' (> 0), marca la estadistica como
+    Registrada y le adjunta las imagenes/movimiento resultantes.
+
+    'id_movimiento' solo se envia a ActualizarEstadisticas cuando tiene un
+    valor real: el schema lo espera como int obligatorio (no Optional), asi
+    que pasarle None dispara un error de validacion de Pydantic.
+    """
+    estadistica_id = movimiento.get("id_stas", 0)
+    
+    if estadistica_id <= 0:
+        return
+
+    datos_stas = {
+        "id": estadistica_id,
+        "estado": (EstadoEstadisticaEnum.Registrada if id_movimiento is not None else EstadoEstadisticaEnum.Procesada),
+        "imagenes": urls_actualizar,
+    }
+    if id_movimiento is not None:
+        datos_stas["id_movimiento"] = id_movimiento
+
+    upd_stas = ActualizarEstadisticas(**datos_stas)
+    
+    await actualizar_stast(upd_stas)
 
 
 async def registrar(db: AsyncSession, movimiento: dict):
@@ -77,12 +201,17 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 MovimientosGastos.UsuarioId == usuario_id,
                 MovimientosGastos.EmpresaId == empresa.Id,
                 MovimientosGastos.NumeroFactura == nro_factura,
+                MovimientosGastos.IsActive==True
             )
             if movimiento_id > 0:
                 factura_query = factura_query.where(MovimientosGastos.Id != movimiento_id)
 
             factura_result = await db.execute(factura_query)
             if factura_result.scalars().first():
+                _, urls_actualizar = await _gestionar_imagenes(
+                    db, usuario_id, imagenes, type_url, mover_a_permanente=False,
+                )
+                await _actualizar_estadistica_si_corresponde(movimiento, urls_actualizar)
                 return RespuestaFuncion(
                     success_registro=False,
                     mensaje=f"Ya existe un movimiento registrado con la factura {nro_factura} para esta empresa",
@@ -99,6 +228,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
             )
             registro = result.scalars().first()
             if not registro:
+                
                 return RespuestaFuncion(
                     success_registro=False,
                     mensaje=f"Movimiento con id {movimiento_id} no encontrado para el usuario",
@@ -219,44 +349,10 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 )
 
             # Las imagenes se procesan y comitean en su propia transaccion
-            urls_actualizar=[]
+            imagenes, urls_actualizar = await _gestionar_imagenes(
+                db, usuario_id, imagenes, type_url, mover_a_permanente=True,
+            )
             if imagenes:
-                if isinstance(imagenes, dict):
-                    type_url = imagenes.get("tipo_url", type_url)
-                    imagenes = imagenes.get("urls_img", [])
-
-                imagenes = [
-                    imagen if isinstance(imagen, dict) else {"url": imagen, "size_bytes": 0}
-                    for imagen in imagenes
-                ]
-                type_url_valor = getattr(type_url, 'value', type_url)
-
-                if type_url_valor == "Temporal":
-                    urls_procesadas = []
-                    urls_eliminadas = []
-                    for imagen_data in imagenes[:2]:
-                        img_url = imagen_data.get("url", "")
-                        resultado = r2_storage.move_between_buckets(
-                            source_url=img_url,
-                            source_bucket=r2_storage.bucket_temporales,
-                            dest_bucket=r2_storage.bucket_gastos,
-                        )
-                        if resultado.get("success"):
-                            url_permanente = resultado.get("url")
-                            urls_procesadas.append({
-                                "url": url_permanente,
-                                "size_bytes": imagen_data.get("size_bytes", 0),
-                            })
-                            urls_eliminadas.append(img_url)
-                            urls_actualizar.append({
-                                "url_temporal": img_url,
-                                "urls_permanente": url_permanente,
-                                
-                            })
-                    if urls_eliminadas:
-                        await procesar_urls_temporales(db, usuario_id, urls_eliminadas)
-                        imagenes = urls_procesadas
-
                 for index, imagen_data in enumerate(imagenes[:2], start=1):
                     try:
                         imagen = MovimientosGastosImagenes(
@@ -271,15 +367,10 @@ async def registrar(db: AsyncSession, movimiento: dict):
                         print(f'Error procesando imagen {index}: {exc}')
 
                 await db.commit()
-            estadistica_id=movimiento.get("id_stas", 0)
 
-            if estadistica_id >0:
-                upd_stas=ActualizarEstadisticas(
-                    id=estadistica_id,
-                    estado=EstadoEstadisticaEnum.Registrada,
-                    imagenes=urls_actualizar,
-                )
-                resultado_actualizar = await actualizar_stast(upd_stas)
+            await _actualizar_estadistica_si_corresponde(
+                movimiento, urls_actualizar, id_movimiento=nuevo_movimiento.Id,
+            )
             return RespuestaFuncion(data_registro=nuevo_movimiento)
 
     except Exception as e:
@@ -305,22 +396,7 @@ async def eliminar_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: 
     urls_imagenes = [img.UrlImagen for img in imagenes if img.UrlImagen]
 
     try:
-        await db.execute(
-            delete(MovimientosGastosConceptos).where(MovimientosGastosConceptos.MovimientoGastoId == movimiento_id)
-        )
-        await db.execute(
-            delete(MovimientosGastosEtiquetas).where(MovimientosGastosEtiquetas.MovimientoGastoId == movimiento_id)
-        )
-        await db.execute(
-            delete(ImagenesPendientes).where(
-                ImagenesPendientes.MovimientoId == movimiento_id,
-            )
-        )
-
-        if urls_imagenes:
-            await db.execute(
-                delete(MovimientosGastosImagenes).where(MovimientosGastosImagenes.MovimientoGastoId == movimiento_id)
-            )
+        movimiento.IsActive = False
 
         for url_imagen in urls_imagenes:
             resultado = r2_storage.delete_gasto_image(url_imagen)
@@ -331,7 +407,6 @@ async def eliminar_movimiento(db: AsyncSession, movimiento_id: int, usuario_id: 
                     or f"No se pudo eliminar la imagen en R2: {url_imagen}"
                 )
 
-        await db.delete(movimiento)
         await db.commit()
         return RespuestaFuncion()
     except Exception as e:

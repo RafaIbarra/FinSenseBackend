@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, func, Enum as SQLEnum
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Date, ForeignKey, func, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -29,6 +29,7 @@ class MovimientosGastos(Base):
     NumeroFactura = Column("NumeroFactura", String(255), nullable=True)
     ModeloExtraccionDatos = Column("ModeloExtraccionDatos", String(255), nullable=True)
     ModeloClasificador = Column("ModeloClasificador", String(255), nullable=True)
+    IsActive = Column("IsActive", Boolean, nullable=False, default=True, server_default="true")
 
     usuario = relationship("Usuarios", back_populates="movimientos_gastos")
     categoria = relationship("CategoriasGastos", back_populates="movimientos_gastos")
@@ -52,3 +53,7 @@ class MovimientosGastos(Base):
         back_populates="movimiento_gasto",
         cascade="all, delete-orphan",
     )
+    estadisticas_modelos = relationship(
+    "EstadisticasModelos",
+    back_populates="movimiento",
+)

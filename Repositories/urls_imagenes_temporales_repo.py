@@ -55,7 +55,7 @@ async def registrar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls
                 pass
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
     
-async def procesar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls: List[str]):
+async def procesar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls: List[str],update_procesada:bool = True):
     try:
         if not id_usuario:
             return RespuestaFuncion(success_registro=False, mensaje="El usuario es obligatorio")
@@ -71,7 +71,7 @@ async def procesar_urls_temporales(db: AsyncSession, id_usuario: int, list_urls:
                 UrlsImagenesTemporales.UrlImagen.in_(list_urls),
             )
             .values(
-                FechaProcesado=fecha_procesado,
+                FechaProcesado=fecha_procesado if update_procesada else None,
                 FechaEliminacion=fecha_procesado,
                 PendienteEliminacion=False,
             )

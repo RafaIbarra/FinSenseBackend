@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Integrations.google_ocr_client import extraer_factura
 from Integrations.groq_clasificador import clasificar_gasto
 from Schemas.Respuestas import RespuestaProcesamientoImgFacturas
-from Schemas.r2_storage_schemas import RespuestaImagenesSubidas
+from Schemas.r2_storage_schemas import RespuestaImagenesSubidas, TipoUrlEnum
 from Schemas.integrations_schemas import FacturaExtraida,ClasificacionGasto
 from Schemas.repos_schemas import RegistroEstadisticas,RegistroEstadisticaDetalle,RegistroEstadisticaImagen
 from Utils.img_works import registrar_lista_imagenes
@@ -17,7 +17,7 @@ from Models.Usuarios import Usuarios
 from Repositories.datos_modelos_repo import registro_stast
 
 async def procesar_imagen_factura(
-                                imagenes: List[Tuple[bytes, str, str]],
+                                imagenes: List[Tuple[bytes, str, str,str,str]],
                                 db: AsyncSession,
                                 upload_file:bool=True,temp_url:bool=False,
                                 time_out_model:int=120,
@@ -30,11 +30,11 @@ async def procesar_imagen_factura(
     data_img:Optional[RespuestaImagenesSubidas] = None
     data_respuesta:Optional[RespuestaProcesamientoImgFacturas] = None
 
-    imagen_1, mime_type_1, filename_1 = imagenes[0]
-    imagen_2, mime_type_2, filename_2 = None, "image/jpeg", "factura.jpg"
+    imagen_1, mime_type_1, filename_1,url_1,size_1 = imagenes[0]
+    imagen_2, mime_type_2, filename_2,url_2,size_2 = None, "image/jpeg", "factura.jpg","",""
 
     if len(imagenes) > 1:
-        imagen_2, mime_type_2, filename_2 = imagenes[1]
+        imagen_2, mime_type_2, filename_2,url_2,size_2 = imagenes[1]
 
     
     
@@ -73,12 +73,20 @@ async def procesar_imagen_factura(
     
     
     data_img=None
-    if upload_file:
+    if upload_file: #SIRVE PARA SABER SI ES UNA LISTA A SUBIR A R2
         imagenes_para_subir = [(imagen_1, filename_1),]
         if imagen_2:
             imagenes_para_subir.append((imagen_2, filename_2))
         data_img=await registrar_lista_imagenes(imagenes_para_subir,temp_url)
-        
+    else:
+        data_img=RespuestaImagenesSubidas(
+            tipo_url=TipoUrlEnum.Procesada,
+            success=True,
+            urls_img=[
+                {"url": url_1, "size_bytes": int(size_1)},
+                *([{"url": url_2, "size_bytes": int(size_2)}] if url_2 else []),
+            ],
+        )
     
     #ERROR EN FORMATO DE RESPUESTA, POR FORMATO DE RESPUESTA NO SE DA LA OPCION DE SOLICITAR ENVIO PENDIENTE
     if not factura_ocr.data_correct:
@@ -114,6 +122,7 @@ async def procesar_imagen_factura(
     
     # data_img=RespuestaImagenesSubidas(**TESTS_DATA['imagenes'])
     imagenes_estadisticas = []
+    
     if data_img and data_img.success:
         imagenes_estadisticas = [
             RegistroEstadisticaImagen(
@@ -132,6 +141,7 @@ async def procesar_imagen_factura(
     )
     registro_estadistica = await registro_stast(valores_reg=valores_stas)
     id_estadistica=registro_estadistica.data_registro if registro_estadistica.success_registro else 0
+    # id_estadistica=0
     return RespuestaProcesamientoImgFacturas(factura=factura_ocr,clasificacion=clasificacion_groq,imagenes=data_img,id_stats=id_estadistica)
 
                     

@@ -31,3 +31,4 @@ class ActualizarEstadisticas(BaseModel):
     id:int =0
     estado: EstadoEstadisticaEnum
     imagenes: List[RegistroEstadisticaImagen] = Field(default_factory=list)
+    id_movimiento: Optional[int] = None

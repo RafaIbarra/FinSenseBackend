@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from Config.settings import AsyncSessionLocal,settings
 from Models.UrlsImagenesTemporales import UrlsImagenesTemporales
+from Models.EstadisticasModelos import EstadisticasModelos, EstadoEstadisticaEnum
 from Repositories.envio_correo_repo import registro_envio_correo
 
 from Integrations.r2_storage import r2_storage
@@ -77,6 +78,12 @@ async def delete_img():
                         PendienteEliminacion=False,
                     )
                 )
+                if registro.IdEstadistica:
+                    await db.execute(
+                        update(EstadisticasModelos)
+                        .where(EstadisticasModelos.Id == registro.IdEstadistica)
+                        .values(Estado=EstadoEstadisticaEnum.Descartada)
+                    )
                 eliminadas += 1
                 resumen.append(
                     {
