@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from Models.EstadisticasModelos import OrigenEstadisticaEnum,EstadoEstadisticaEnum
 from Models.EstadisticasModelosDetalle import TipoOperacionEnum
-
+from Models.ErroresProcesamientoImagenesPendientes import TipoErrorEnum
 
 class RegistroEstadisticaDetalle(BaseModel):
     tipo_operacion: TipoOperacionEnum
@@ -32,3 +32,8 @@ class ActualizarEstadisticas(BaseModel):
     estado: EstadoEstadisticaEnum
     imagenes: List[RegistroEstadisticaImagen] = Field(default_factory=list)
     id_movimiento: Optional[int] = None
+
+class RegistroErroresPendientes(BaseModel):
+    id_pendiente: int =0
+    tipo_error:TipoErrorEnum
+    error:str= ""

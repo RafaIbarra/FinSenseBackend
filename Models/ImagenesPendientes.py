@@ -35,3 +35,8 @@ class ImagenesPendientes(Base):
 
     usuario = relationship("Usuarios", back_populates="imagenes_pendientes")
     movimiento = relationship("MovimientosGastos", back_populates="imagenes_pendientes")
+    errores_procesamiento = relationship(
+        "ErroresProcesamientoImagenesPendientes",
+        back_populates="imagen_pendiente",
+        cascade="all, delete-orphan",
+    )

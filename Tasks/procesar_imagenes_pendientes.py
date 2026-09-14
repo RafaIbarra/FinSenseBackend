@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 from Config.settings import AsyncSessionLocal
 from Models.ImagenesPendientes import ImagenesPendientes
 from Models.MovimientosGastos import TipoRegistroEnum
+from Models.ErroresProcesamientoImagenesPendientes import TipoErrorEnum
 from Models.Usuarios import Usuarios
 from Repositories.categorias_gastos_repo import obtener_o_crear_categoria
 from Repositories.conceptos_gastos_repo import obtener_o_crear_conceptos
@@ -22,6 +23,7 @@ from Repositories.empresas_repo import obtener_o_crear_empresa
 from Repositories.etiquetas_gastos_repo import obtener_o_crear_etiquetas
 from Repositories.movimientos_gastos_repo import registrar
 from Repositories.envio_correo_repo import registro_envio_correo
+from Schemas.repos_schemas import RegistroErroresPendientes
 from Services.img_factura_services import procesar_imagen_factura
 from Services.email_service import RegistroPendienteData, enviar_correo_registro_pendiente
 from DataTest.data import DATA_RESUMEN
@@ -117,6 +119,12 @@ async def marcar_estado(
         raise
 
 
+async def registro_error(db,valores_reg: RegistroErroresPendientes):
+    procesado=True
+    if valores_reg.tipo_error==TipoErrorEnum.Modelo:
+        procesado=False
+        
+    
 
 
 async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:

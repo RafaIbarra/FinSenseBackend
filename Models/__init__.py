@@ -19,7 +19,8 @@ from .PreferenciasUsuario import PreferenciasUsuario
 from .EstadisticasModelos import EstadisticasModelos
 from .EstadisticasModelosDetalle import EstadisticasModelosDetalle
 from .EstadisticasModelosImagenes import EstadisticasModelosImagenes
+from .ErroresProcesamientoImagenesPendientes import ErroresProcesamientoImagenesPendientes
 
 __all__ = ["Usuarios", "SesionesActivas", "Empresas", "CategoriasGastos", "EtiquetasGastos", "ConceptosGastos", 
            "MovimientosGastos", "MovimientosGastosImagenes", "MovimientosGastosEtiquetas", "MovimientosGastosConceptos",
-           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos", "Temas", "PreferenciasUsuario", "EstadisticasModelos", "EstadisticasModelosDetalle", "EstadisticasModelosImagenes"]
+           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos", "Temas", "PreferenciasUsuario", "EstadisticasModelos", "EstadisticasModelosDetalle", "EstadisticasModelosImagenes", "ErroresProcesamientoImagenesPendientes"]
