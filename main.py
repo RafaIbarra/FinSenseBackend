@@ -106,7 +106,7 @@ app.include_router(router_user_config)
 origins = ['*']
 if settings.MODO_PRODUCCION:
     origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
-    origins=origins + ", http://localhost:8081"
+    origins.append("http://localhost:8081")
     # No usar assert: se elimina si Python corre con la flag -O.
     # Este check es de seguridad y no puede depender de eso.
     if not origins or "*" in origins:
