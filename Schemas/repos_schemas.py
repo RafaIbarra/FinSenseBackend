@@ -34,6 +34,6 @@ class ActualizarEstadisticas(BaseModel):
     id_movimiento: Optional[int] = None
 
 class RegistroErroresPendientes(BaseModel):
-    id_pendiente: int =0
+    tarea: str =''
     tipo_error:TipoErrorEnum
     error:str= ""

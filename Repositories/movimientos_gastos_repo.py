@@ -214,7 +214,7 @@ async def registrar(db: AsyncSession, movimiento: dict):
                 await _actualizar_estadistica_si_corresponde(movimiento, urls_actualizar)
                 return RespuestaFuncion(
                     success_registro=False,
-                    mensaje=f"Ya existe un movimiento registrado con la factura {nro_factura} para esta empresa",
+                    mensaje=f"Ya existe un movimiento registrado con la factura {nro_factura} para la empresa {empresa.NombreEmpresa}",
                 )
 
         if movimiento_id > 0:

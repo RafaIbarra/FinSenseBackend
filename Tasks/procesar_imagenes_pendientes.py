@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 from Config.settings import AsyncSessionLocal
 from Models.ImagenesPendientes import ImagenesPendientes
 from Models.MovimientosGastos import TipoRegistroEnum
-from Models.ErroresProcesamientoImagenesPendientes import TipoErrorEnum
+from Models.ErroresProcesamientoImagenesPendientes import TipoErrorEnum,ErroresProcesamientoImagenesPendientes
 from Models.Usuarios import Usuarios
 from Repositories.categorias_gastos_repo import obtener_o_crear_categoria
 from Repositories.conceptos_gastos_repo import obtener_o_crear_conceptos
@@ -99,9 +99,10 @@ async def marcar_estado(
     ids_pendientes: List[int],
     procesado: bool,
     mensaje_error: str = "",
-    id_reg: int = 0,
+    id_reg: Optional[int] = None,
     fecha_procesado: datetime = None,
 ):
+    
     if fecha_procesado is None:
         fecha_procesado = func.now()
     try:
@@ -115,16 +116,32 @@ async def marcar_estado(
             )
         )
     except Exception as exc:
-        print(f"❌ Error en actualizacion de pendientes: {limpiar_mensaje_error_bd(exc)}")
+        print(f"❌ Error en actualizacion de pendientes: {limpiar_mensaje_error_bd(str(exc))}")
         raise
 
 
-async def registro_error(db,valores_reg: RegistroErroresPendientes):
-    procesado=True
-    if valores_reg.tipo_error==TipoErrorEnum.Modelo:
-        procesado=False
-        
+async def registro_error(db,valores_reg: RegistroErroresPendientes, fecha_procesado: datetime):
     
+    procesado = valores_reg.tipo_error != TipoErrorEnum.Modelo
+    result = await db.execute(
+        select(ImagenesPendientes.Id).where(
+            ImagenesPendientes.CodigoTarea == valores_reg.tarea
+        )
+    )
+    ids_pendientes = list(result.scalars().all())
+
+    db.add(
+        ErroresProcesamientoImagenesPendientes(
+            CodigoTarea=valores_reg.tarea,
+            TipoError=valores_reg.tipo_error,
+            Error=valores_reg.error,
+        )
+    )
+    await db.flush()
+
+    await marcar_estado(
+        db, ids_pendientes, procesado, valores_reg.error, None, fecha_procesado
+    )
 
 
 async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
@@ -160,21 +177,21 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
         )
 
         if not resultado.procesamiento_correcto:
-            await marcar_estado(
-                db, ids_pendientes, True, resultado.mensaje_error, 0, fecha_procesado
-            )
+            tipo=TipoErrorEnum.Modelo if resultado.solicita_envio_pendiente else TipoErrorEnum.EstructuraDatos 
+            error_data=RegistroErroresPendientes(
+                tarea=codigo_tarea,
+                tipo_error=tipo,
+                error=resultado.mensaje_error
+                )
+            await registro_error(db,error_data,fecha_procesado)
+            
             print(f"[TAREA {codigo_tarea}] Error extracción: {resultado.mensaje_error}")
             return 0
 
         factura = resultado.factura
         clasificacion = resultado.clasificacion
 
-        if not factura.data_correct:
-            await marcar_estado(
-                db, ids_pendientes, True, factura.mensaje_error, 0, fecha_procesado
-            )
-            print(f"[TAREA {codigo_tarea}] Datos incorrectos: {factura.mensaje_error}")
-            return 0
+        
 
         paso_actual = "3. Registro completo"
         print(f" --> {paso_actual}")
@@ -260,7 +277,16 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
 
         registro_gasto = await registrar(db, movimiento_data)
         if not registro_gasto.success_registro:
-            raise RuntimeError(f"Movimiento: {registro_gasto.mensaje}")
+            tipo=TipoErrorEnum.RegistroDato 
+            error_data=RegistroErroresPendientes(
+                tarea=codigo_tarea,
+                tipo_error=tipo,
+                error=registro_gasto.mensaje
+                )
+            await registro_error(db,error_data,fecha_procesado)
+            
+            print(f"[TAREA {codigo_tarea}] Error registro: {registro_gasto.mensaje}")
+            return 0
 
         id_reg = registro_gasto.data_registro.Id
         print(" --> 4. Actualizacion de pendientes")
@@ -275,9 +301,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
         print(f"[TAREA {codigo_tarea}] ❌ Error en --> {paso_actual}: {exc}")
         traceback.print_exc()
 
-        await marcar_estado(
-            db, ids_pendientes, True, str(exc), 0, fecha_procesado
-        )
+        
         raise
 
 async def main():
