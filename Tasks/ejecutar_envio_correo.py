@@ -14,7 +14,7 @@ async def ejecutar_envios_pendientes( id_correo:int =0):
     async with AsyncSessionLocal() as db:
         print(" --> 1. Obteniendo correos pendientes")
         respuesta = await obtener_envios_pendientes(db,id_correo)
-
+        
         if not respuesta.success_registro:
             print(f"❌ Error al obtener correos pendientes: {respuesta.mensaje}")
             return respuesta
@@ -23,20 +23,22 @@ async def ejecutar_envios_pendientes( id_correo:int =0):
         print(f" --> Correos pendientes encontrados: {len(envios)}")
 
         for index, envio in enumerate(envios, start=1):
+            id_control=envio.Id
             print(f" --> 2. Procesando correo {index}/{len(envios)} - Id: {envio.Id}")
             resultado = await procesar_envio_correo(db, envio.Id)
-
+            
             if not resultado.success_registro:
-                print(f"❌ Error al procesar correo {envio.Id}: {resultado.mensaje}")
+                print(f"❌ Error al procesar correo {id_control} {resultado.mensaje}")
             else:
                 print(f"✅ Correo {envio.Id} procesado correctamente")
 
-            if index < len(envios):
-                print(" --> Esperando 2 minutos antes del siguiente correo para evitar spam...")
-                await asyncio.sleep(120)
+            # if index < len(envios):
+            #     print(" --> Esperando 2 minutos antes del siguiente correo para evitar spam...")
+            #     await asyncio.sleep(120)
 
     print("\n=== FIN DEL PROCESO DE ENVÍO DE CORREOS ===")
     return {"procesados": len(envios) if 'envios' in locals() else 0}
+    # return {"procesados"}
 
 
 if __name__ == "__main__":

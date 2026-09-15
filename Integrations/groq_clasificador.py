@@ -8,12 +8,13 @@ import json
 
 GROQ_API_KEY = settings.GROQ_API_KEY
 client = AsyncGroq(api_key=GROQ_API_KEY)
-MODELS_FALLBACK = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
+MODELS_FALLBACK = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
 
 MODEL_KWARGS = {
     "llama-3.1-8b-instant": {"max_tokens": 1500},
     "openai/gpt-oss-20b": {"max_tokens": 2000, "reasoning_effort": "none"},
-    "qwen/qwen3.6-27b": {"max_tokens": 1000, "reasoning_effort": "none"},
+    # "qwen/qwen3.6-27b": {"max_tokens": 1000, "reasoning_effort": "none"},
+    "qwen/qwen3.8-27b": {"max_tokens": 1000, "reasoning_effort": "none"},
 }
 DEFAULT_MODEL_KWARGS = {"max_tokens": 1500}
 

@@ -29,6 +29,7 @@ from Services.email_service import RegistroPendienteData, enviar_correo_registro
 from DataTest.data import DATA_RESUMEN
 from Utils.error_utils import limpiar_mensaje_error_bd
 from Tasks.ejecutar_envio_correo import ejecutar_envios_pendientes
+
 async def descargar_imagen(url: str) -> Tuple[bytes, str, str]:
     """Descarga una imagen desde URL y devuelve (bytes, content_type, filename)."""
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
@@ -178,6 +179,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
 
         if not resultado.procesamiento_correcto:
             tipo=TipoErrorEnum.Modelo if resultado.solicita_envio_pendiente else TipoErrorEnum.EstructuraDatos 
+            error_export='Error en servicio de modelo' if resultado.solicita_envio_pendiente else resultado.mensaje_error
             error_data=RegistroErroresPendientes(
                 tarea=codigo_tarea,
                 tipo_error=tipo,
@@ -186,7 +188,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             await registro_error(db,error_data,fecha_procesado)
             
             print(f"[TAREA {codigo_tarea}] Error extracción: {resultado.mensaje_error}")
-            return 0
+            return 0,error_export
 
         factura = resultado.factura
         clasificacion = resultado.clasificacion
@@ -286,13 +288,13 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             await registro_error(db,error_data,fecha_procesado)
             
             print(f"[TAREA {codigo_tarea}] Error registro: {registro_gasto.mensaje}")
-            return 0
+            return 0,registro_gasto.mensaje
 
         id_reg = registro_gasto.data_registro.Id
         print(" --> 4. Actualizacion de pendientes")
         await marcar_estado(db, ids_pendientes, True, "", id_reg, fecha_procesado)
         print(f"[TAREA {codigo_tarea}] Movimiento registrado: {id_reg}")
-        return id_reg
+        return id_reg,''
         
 
     except Exception as exc:
@@ -319,19 +321,22 @@ async def main():
             id_reg = None
 
             try:
-                id_reg = await procesar_tarea(db, tarea, fecha_procesado)
+                id_reg,msg = await procesar_tarea(db, tarea, fecha_procesado)
                 await db.commit()
             except Exception:
                 await db.rollback()
                 id_reg = 0
+                msg=''
             finally:
-                if id_reg:
-                    registro = {
-                        "codigo_tarea": codigo_tarea,
-                        "id_reg": id_reg,
-                        "fecha_hora_procesado": fecha_procesado.strftime("%d/%m/%y %H:%M:%S"),
-                    }
-                    resumen.setdefault(usuario_id, []).append(registro)
+                # if id_reg:
+                registro = {
+                    "codigo_tarea": codigo_tarea,
+                    "id_reg": id_reg,
+                    "fecha_hora_procesado": fecha_procesado.strftime("%d/%m/%y %H:%M:%S"),
+                    "estado":  "🟢- Procesado" if id_reg>0 else "🔴- Error ",
+                    "observacion": msg
+                }
+                resumen.setdefault(usuario_id, []).append(registro)
                 await asyncio.sleep(60)
         if resumen:
             print("INICIO PROCESO DE COLA DE CORREO")
@@ -350,6 +355,8 @@ async def main():
                             "codigo_tarea": registro["codigo_tarea"],
                             "id_reg": registro["id_reg"],
                             "fecha_hora_procesado": registro["fecha_hora_procesado"],
+                            "estado": registro["estado"],
+                            "observacion": registro["observacion"],
                         }
                         for registro in registros
                     ],
@@ -370,8 +377,8 @@ async def main():
     if respuesta_correos:
         for x in respuesta_correos:
             await ejecutar_envios_pendientes(x)
-    print("\n=== RESUMEN ===")
-    print(json.dumps(resumen, indent=2, ensure_ascii=False))
+    # print("\n=== RESUMEN ===")
+    # print(json.dumps(resumen, indent=2, ensure_ascii=False))
     
     print("\n=== FIN DEL PROCESO ===")
     return resumen
