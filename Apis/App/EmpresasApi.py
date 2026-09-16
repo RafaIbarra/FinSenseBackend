@@ -1,7 +1,8 @@
 from fastapi import Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from Common.routers_factory import generar_router
+# from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada
 from Config.settings import get_db
 from Repositories.empresas_repo import (
     eliminar_empresa,
@@ -10,7 +11,7 @@ from Repositories.empresas_repo import (
     registrar,
 )
 
-router_empresas = generar_router('/empresas')
+router_empresas = generar_router_app_privada('empresas')
 
 
 @router_empresas.get("/listar")

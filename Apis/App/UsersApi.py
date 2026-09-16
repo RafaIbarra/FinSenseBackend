@@ -5,7 +5,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 
 
-from Common.routers_factory import generar_router
+#from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada,generar_router_app_publica
 from Config.settings import get_db
 from Security.password_utils import hash_password
 from Models.Usuarios import Usuarios
@@ -15,9 +16,9 @@ import re
 
 
 
-_PREFIX = '/user'
-router_user_public = generar_router(_PREFIX, ["Registro Usuarios"], protegido=False)
-router_user_privado = generar_router(_PREFIX, ["Preferencias Usuarios"])
+_PREFIX = 'user'
+router_user_public = generar_router_app_publica(_PREFIX)
+router_user_privado = generar_router_app_privada(_PREFIX)
 
 
 

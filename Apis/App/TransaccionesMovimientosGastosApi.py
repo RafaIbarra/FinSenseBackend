@@ -3,7 +3,8 @@ from typing import Any, List, Optional
 
 from fastapi import Depends, Form, HTTPException, Request,status,File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from Common.routers_factory import generar_router
+# from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada
 from Config.settings import get_db
 
 
@@ -24,7 +25,7 @@ from Models.MovimientosGastos import TipoRegistroEnum
 
 from Integrations.r2_storage import *
 
-router_movimientos = generar_router('/gastos')
+router_movimientos = generar_router_app_privada('gastos')
 
 
 

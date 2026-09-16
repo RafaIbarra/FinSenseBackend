@@ -1,9 +1,10 @@
 from fastapi import Depends, Form, HTTPException, Request, Response,status,File, UploadFile
 from Config.settings import get_db,settings
 from sqlalchemy.ext.asyncio import AsyncSession
-from Common.routers_factory import generar_router
 from Integrations.groq_clasificador import disponibilidad
-router_models = generar_router('/models')
+from .router_admin import generar_router_admin
+
+router_models = generar_router_admin('models')
 @router_models.get("/groq")
 async def listar(
     request: Request,

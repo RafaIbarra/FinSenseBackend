@@ -6,7 +6,8 @@ from fastapi import Depends, Form, HTTPException, Request, Response
 from sqlalchemy import select,  and_,update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from Common.routers_factory import generar_router
+# from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada,generar_router_app_publica
 from Config.settings import get_db, settings
 from Models.PreferenciasUsuario import PreferenciasUsuario
 from Models.SesionesActivas import SesionesActivas
@@ -20,9 +21,9 @@ from Common.rate_limit_middleware import rate_limit
 from Utils.error_utils import limpiar_mensaje_error_bd
 
 # ─── Routers ───────────────────────────────────────────────────────────────────
-_PREFIX = '/sessions'
-router_sesion_public = generar_router(_PREFIX, ["Sesiones"], protegido=False)
-router_sesion_protegida = generar_router(_PREFIX, ["Sesiones"])
+_PREFIX = 'sessions'
+router_sesion_public = generar_router_app_publica(_PREFIX)
+router_sesion_protegida = generar_router_app_privada(_PREFIX)
 
 # ─── Configuración ─────────────────────────────────────────────────────────────
 

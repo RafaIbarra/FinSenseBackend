@@ -1,12 +1,15 @@
 from fastapi import Depends, status, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from Common.routers_factory import generar_router
+
 from Config.settings import get_db
 from Repositories.envio_correo_repo import listado_envios_correo
 from Repositories.imagenes_pendientes_repo import listado_imagenes_pendientes
 from Repositories.imagenes_reportadas_repo import listado_reportados
-router_admin = generar_router('/admin',protegido_admin=True)
+from .router_admin import generar_router_admin
+
+router_admin = generar_router_admin('listados') 
+# router_admin = generar_router(f'/admin',protegido_admin=True)
 
 @router_admin.get("/listado-envio-correo")
 async def listar_correos(

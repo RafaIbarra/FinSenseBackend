@@ -11,17 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from Config.settings import settings, get_db
-from Apis.UsersApi import router_user_public,router_user_privado
-from Apis.ConfiguracionesUsuarioApi import router_user_config
+from Apis.App.UsersApi import router_user_public,router_user_privado
+from Apis.App.ConfiguracionesUsuarioApi import router_user_config
 
-from Apis.SessionsApi import router_sesion_protegida,router_sesion_public
-from Apis.TransaccionesMovimientosGastosApi import router_movimientos
-from Apis.CategoriasGastosApi import router_categorias
-from Apis.EmpresasApi import router_empresas
-from Apis.DisponibilidadModelsApi import router_models
-from Apis.ListadosGastosApi import router_movimientos_listados
-from Apis.TestsApi import router_tests
-from Apis.AdminApi import router_admin
+from Apis.App.SessionsApi import router_sesion_protegida,router_sesion_public
+from Apis.App.TransaccionesMovimientosGastosApi import router_movimientos
+from Apis.App.CategoriasGastosApi import router_categorias
+from Apis.App.EmpresasApi import router_empresas
+from Apis.Admin.DisponibilidadModelsApi import router_models
+from Apis.App.ListadosGastosApi import router_movimientos_listados
+from Apis.App.TestsApi import router_tests
+from Apis.Admin.AdminApi import router_admin
 from Common.rate_limit_middleware import default_rate_limiter,rate_limit
 from Common.security_headers import SecurityHeadersMiddleware
 

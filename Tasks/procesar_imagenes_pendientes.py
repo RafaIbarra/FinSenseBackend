@@ -291,10 +291,11 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             return 0,registro_gasto.mensaje
 
         id_reg = registro_gasto.data_registro.Id
+        msg=f'Factura registrada, N°: {registro_gasto.data_registro.NumeroFactura}; Empresa: {registro_gasto.data_registro.empresa.NombreEmpresa} '
         print(" --> 4. Actualizacion de pendientes")
         await marcar_estado(db, ids_pendientes, True, "", id_reg, fecha_procesado)
         print(f"[TAREA {codigo_tarea}] Movimiento registrado: {id_reg}")
-        return id_reg,''
+        return id_reg,msg
         
 
     except Exception as exc:
@@ -374,11 +375,11 @@ async def main():
                     )
         else:
             print("NO HAY DATOS QUE NOTIFICAR")
-    if respuesta_correos:
-        for x in respuesta_correos:
-            await ejecutar_envios_pendientes(x)
-    # print("\n=== RESUMEN ===")
-    # print(json.dumps(resumen, indent=2, ensure_ascii=False))
+    # if respuesta_correos:
+    #     for x in respuesta_correos:
+    #         await ejecutar_envios_pendientes(x)
+    print("\n=== RESUMEN ===")
+    print(json.dumps(resumen, indent=2, ensure_ascii=False))
     
     print("\n=== FIN DEL PROCESO ===")
     return resumen

@@ -2,12 +2,14 @@ from fastapi import  Depends, Form, HTTPException,Request,status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from Common.routers_factory import generar_router
+# from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada
 from Config.settings import get_db
 from Repositories.preferencia_usuario_repo import registrar_preferencia_usuario
 from Repositories.temas_repo import listar_temas
 
-router_user_config = generar_router('/user-config', ["Preferencias Usuarios"])
+# router_user_config = generar_router('/user-config', ["Preferencias Usuarios"])
+router_user_config = generar_router_app_privada('user-config')
 
 @router_user_config.post("/usuario-movile-theme")
 async def asignar_tema_usuario(

@@ -13,6 +13,20 @@ from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 
 
+def _extraer_url(item: Any) -> str | None:
+	"""Normaliza un elemento de 'urls_img', que puede venir como:
+	- string plano: "https://..."
+	- dict: {"url": "https://...", "size_bytes": 12345}
+	Devuelve el string de la url o None si no se pudo extraer.
+	"""
+	if isinstance(item, Mapping):
+		url = item.get("url")
+		return url if isinstance(url, str) else None
+	if isinstance(item, str):
+		return item
+	return None
+
+
 async def registro_reporte_imagen(
 	db: AsyncSession,
 	id_usuario: int,
@@ -27,7 +41,7 @@ async def registro_reporte_imagen(
 
 		if not isinstance(valores, Mapping):
 			return RespuestaFuncion(success_registro=False, mensaje="Los datos del reporte son obligatorios")
-
+		
 		respuesta = dict(valores)
 		detail = respuesta.get("detail")
 		if not isinstance(detail, Mapping):
@@ -41,13 +55,22 @@ async def registro_reporte_imagen(
 			type_url_valor = None
 			imagenes = imagenes_data
 
+		print(f'imagenes_data : {imagenes_data}')
+
 		if hasattr(type_url_valor, "value"):
+			print('aca ahce')
 			type_url_valor = type_url_valor.value
 		observacion = respuesta.get("observacion", detail.get("observacion"))
 		if not imagenes:
 			return RespuestaFuncion(success_registro=False, mensaje="Debe enviarse al menos una imagen")
 
 		imagenes = imagenes if isinstance(imagenes, list) else [imagenes]
+		imagenes = [_extraer_url(item) for item in imagenes]
+		imagenes = [url for url in imagenes if url]
+
+		if not imagenes:
+			return RespuestaFuncion(success_registro=False, mensaje="Debe enviarse al menos una imagen valida")
+
 		for url_temporal in imagenes[:2]:
 			if type_url_valor != "Temporal":
 				urls_registradas.append(url_temporal)

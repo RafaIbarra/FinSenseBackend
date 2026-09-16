@@ -1,0 +1,59 @@
+{
+    "id": 0,
+    "factura": {
+        "empresa": "BIGGIE S.A.",
+        "rubro": "",
+        "ruc_empresa": "80077406-0",
+        "fecha": "2026-09-11",
+        "numero_factura": "252-002-0099028",
+        "total": 16000.0,
+        "iva_diez": 1455.0,
+        "iva_cinco": 0.0,
+        "fiabilidad": "Excelente",
+        "detalle": [
+            "Cigarrillo Kent Blue Bc Hw26"
+        ],
+        "Model": "gemini-2.5-flash",
+        "stats": {
+            "input_tokens": 3015,
+            "output_tokens": 169,
+            "thoughts_tokens": 1853,
+            "total_tokens": 5037
+        },
+        "success_registro": true,
+        "mensaje_error": "",
+        "data_correct": true
+    },
+    "clasificacion": {
+        "categoria": "Supermercados",
+        "etiquetas": [
+            {
+                "etiqueta": "Tabaco",
+                "conceptos": [
+                    "Cigarrillo Kent Blue Bc Hw26"
+                ]
+            }
+        ],
+        "modelo_clasificador": "qwen/qwen3.8-27b",
+        "stats": {
+            "input_tokens": 932,
+            "output_tokens": 67,
+            "thoughts_tokens": 0,
+            "total_tokens": 999
+        }
+    },
+    "imagenes": {
+        "urls_img": [
+            {
+                "url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260916_151417_f643d00a.jpeg",
+                "size_bytes": 103949
+            }
+        ],
+        "success": true,
+        "mensaje_error_subida": "",
+        "tipo_url": "Temporal"
+    },
+    "tipo_registro": "Asistido",
+    "id_stas": 15
+    ,"observacion": "el formato no es correcto"
+}

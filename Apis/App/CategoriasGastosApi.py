@@ -1,7 +1,8 @@
 from fastapi import Depends, Form, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from Common.routers_factory import generar_router
+# from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada
 from Config.settings import get_db
 from Repositories.categorias_gastos_repo import (
     eliminar_categoria,
@@ -10,7 +11,7 @@ from Repositories.categorias_gastos_repo import (
     registrar,
 )
 
-router_categorias = generar_router('/categorias')
+router_categorias = generar_router_app_privada('categorias')
 
 
 @router_categorias.get("/listar")

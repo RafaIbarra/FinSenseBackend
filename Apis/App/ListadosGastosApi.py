@@ -2,11 +2,12 @@ from fastapi import Depends, HTTPException, Request,status
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from Config.settings import get_db
-from Common.routers_factory import generar_router
+# from Common.routers_factory import generar_router
+from .router_app import generar_router_app_privada
 from Common.rate_limit_middleware import rate_limit
 from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario,datos_iva_mes
 from Services.envio_archivo_services import generar_y_enviar_excel_iva
-router_movimientos_listados = generar_router('/gastos-listados')
+router_movimientos_listados = generar_router_app_privada('gastos-listados')
 
 @router_movimientos_listados.get("/movimientos-usuario")
 async def listar_movimiento_usuario(

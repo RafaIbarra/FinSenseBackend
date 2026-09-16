@@ -1,0 +1,18 @@
+{
+    "detail": {
+        "imagenes": {
+            "urls_img": [
+                {
+                    "url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260916_152721_368e33bd.png",
+                    "size_bytes": 3272
+                }
+            ],
+            "success": true,
+            "mensaje_error_subida": "",
+            "tipo_url": "Temporal"
+        },
+        "solicita_envio_pendiente": false,
+        "mensaje_error": "campos requeridos no detectados en la imagen"
+        ,"observacion": "el formato no es correcto"
+    }
+}
