@@ -3,14 +3,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.Empresas import Empresas
 from Schemas.Respuestas import RespuestaFuncion
+from Schemas.response_schemas import EmpresasResponse
 from Utils.error_utils import limpiar_mensaje_error_bd
 
 async def listar_empresas(db: AsyncSession):
     """Devuelve todas las empresas ordenadas por la más reciente."""
-    result = await db.execute(
-        select(Empresas).order_by(Empresas.Id.desc())
-    )
-    return result.scalars().all()
+    try:
+        result = await db.execute(
+            select(Empresas).order_by(Empresas.Id.desc())
+        )
+        
+        empresas = result.scalars().all()
+        
+        
+        return RespuestaFuncion(data_registro=empresas)
+    except Exception as error:
+            await db.rollback()
+            return RespuestaFuncion(
+                success_registro=False,
+                mensaje=str(error),
+            )
 
 
 async def registrar(db: AsyncSession, empresa: dict):

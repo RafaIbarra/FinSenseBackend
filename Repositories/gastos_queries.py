@@ -14,6 +14,7 @@ from Schemas.file_format_schemas import ExcelIvaFormat
 from Schemas.Respuestas import RespuestaFuncion
 
 from Utils.error_utils import limpiar_mensaje_error_bd
+from Utils.formateo_fechas import formatear_fecha_larga,formatear_fecha_corta
 
 async def datos_iva_mes(db: AsyncSession, id_usuario: int, anno: int, mes: int):
     try:
@@ -226,8 +227,7 @@ async def movimientos_usuario_gastos(
         )
         movimientos = result.scalars().all()
 
-        def formatear_fecha(fecha):
-            return fecha.strftime("%d/%m/%y %H:%M:%S") if fecha else None
+        
 
         def tareas_procesadas(movimiento):
             tipo_registro = movimiento.TipoRegistro.value if hasattr(movimiento.TipoRegistro, "value") else str(movimiento.TipoRegistro)
@@ -246,8 +246,8 @@ async def movimientos_usuario_gastos(
         data= [
             {
                 "id": movimiento.Id,
-                "fecha_registro": formatear_fecha(movimiento.FechaRegistro),
-                "fecha_gasto": movimiento.FechaGasto.strftime("%d/%m/%y") if movimiento.FechaGasto else None,
+                "fecha_registro": formatear_fecha_larga(movimiento.FechaRegistro),
+                "fecha_gasto": formatear_fecha_corta(movimiento.FechaGasto),
                 "total_gasto": movimiento.TotalGasto,
                 "iva_diez": movimiento.IvaDiez,
                 "iva_cinco": movimiento.IvaCinco,
@@ -318,18 +318,17 @@ async def listar_imagenes_pendientes_usuario(db: AsyncSession, id_usuario: int):
     )
     imagenes = result.scalars().all()
 
-    def formatear_fecha(fecha):
-        return fecha.strftime("%d/%m/%Y %H:%M:%S") if fecha else None
+    
 
     return [
         {
             "id": imagen.Id,
             "codigo_tarea": imagen.CodigoTarea,
             "url_imagen": imagen.UrlImagen,
-            "fecha_registro": formatear_fecha(imagen.FechaRegistro),
+            "fecha_registro": formatear_fecha_larga(imagen.FechaRegistro),
             "motivo": imagen.Motivo,
             "procesado": imagen.Procesado,
-            "fecha_procesado": formatear_fecha(imagen.FechaProcesado),
+            "fecha_procesado": formatear_fecha_larga(imagen.FechaProcesado),
             "movimiento": {
                 "id": movimiento.Id,
                 "categoria": {

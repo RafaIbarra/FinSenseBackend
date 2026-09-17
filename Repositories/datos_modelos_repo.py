@@ -11,7 +11,7 @@ from Models.EstadisticasModelosDetalle import EstadisticasModelosDetalle
 from Models.EstadisticasModelosImagenes import EstadisticasModelosImagenes
 from Schemas.Respuestas import RespuestaFuncion
 from Schemas.repos_schemas import RegistroEstadisticas,ActualizarEstadisticas
-from Schemas.ResponseModelsSchemas.errores_modelos_schemas import ErrorModeloResponse
+
 async def registro_error(error_data: dict):
     async with AsyncSessionLocal() as db:
         try:
@@ -127,8 +127,8 @@ async def datos_errores_modelos(db: AsyncSession):
                 select(ErroresModelos).order_by(ErroresModelos.Proceso.asc())
             )
         errores = result.scalars().all()
-        data=ErrorModeloResponse(errores)
-        return RespuestaFuncion(data_registro=data)
+        
+        return RespuestaFuncion(data_registro=errores)
 
     except Exception as error:
         await db.rollback()

@@ -13,7 +13,7 @@ from Integrations.r2_storage import *
 from Schemas.Respuestas import RespuestaFuncion
 from Utils.error_utils import limpiar_mensaje_error_bd
 from Utils.img_works import registrar_lista_imagenes
-
+from Utils.formateo_fechas import formatear_fecha_larga
 
 async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, imagenes: List[Tuple[bytes, str, str]], motivo: str):
     try:
@@ -95,18 +95,17 @@ async def listado_imagenes_pendientes(db: AsyncSession):
         )
         imagenes = result.scalars().all()
 
-        def formatear_fecha(fecha):
-            return fecha.strftime("%d/%m/%Y %H:%M:%S") if fecha else None
+        
 
         respuesta= [
             {
                 "id": imagen.Id,
                 "codigo_tarea": imagen.CodigoTarea,
                 "url_imagen": imagen.UrlImagen,
-                "fecha_registro": formatear_fecha(imagen.FechaRegistro),
+                "fecha_registro": formatear_fecha_larga(imagen.FechaRegistro),
                 "motivo": imagen.Motivo,
                 "procesado": imagen.Procesado,
-                "fecha_procesado": formatear_fecha(imagen.FechaProcesado),
+                "fecha_procesado": formatear_fecha_larga(imagen.FechaProcesado),
                 "movimiento": {
                     "id": movimiento.Id,
                     "categoria": {

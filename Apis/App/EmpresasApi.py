@@ -10,30 +10,19 @@ from Repositories.empresas_repo import (
     obtener_empresa,
     registrar,
 )
+from Schemas.response_schemas import EmpresasResponse
 
 router_empresas = generar_router_app_privada('empresas')
 
 
-@router_empresas.get("/listar")
+@router_empresas.get("/listar",response_model=list[EmpresasResponse])
 async def listar(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    empresas = await listar_empresas(db)
-
-    return {
-        "status": "success",
-        "empresas": [
-            {
-                "id": empresa.Id,
-                "nombre": empresa.NombreEmpresa,
-                "ruc": empresa.Ruc,
-                "url_logo": empresa.UrlLogo,
-                "fecha_registro": empresa.FechaRegistro.isoformat() if empresa.FechaRegistro else None,
-            }
-            for empresa in empresas
-        ],
-    }
+    empresas_data = await listar_empresas(db)
+    
+    return empresas_data.data_registro
 
 
 @router_empresas.get("/detalle/{empresa_id}")
