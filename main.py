@@ -18,7 +18,7 @@ from Apis.App.SessionsApi import router_sesion_protegida,router_sesion_public
 from Apis.App.TransaccionesMovimientosGastosApi import router_movimientos
 from Apis.App.CategoriasGastosApi import router_categorias
 from Apis.App.EmpresasApi import router_empresas
-from Apis.Admin.DisponibilidadModelsApi import router_models
+from Apis.Admin.DatosModelosApi import router_models
 from Apis.App.ListadosGastosApi import router_movimientos_listados
 from Apis.App.TestsApi import router_tests
 from Apis.Admin.AdminApi import router_admin

@@ -1,3 +1,4 @@
+import re
 import time
 
 from sqlalchemy import select
@@ -10,7 +11,7 @@ from Models.EstadisticasModelosDetalle import EstadisticasModelosDetalle
 from Models.EstadisticasModelosImagenes import EstadisticasModelosImagenes
 from Schemas.Respuestas import RespuestaFuncion
 from Schemas.repos_schemas import RegistroEstadisticas,ActualizarEstadisticas
-
+from Schemas.ResponseModelsSchemas.errores_modelos_schemas import ErrorModeloResponse
 async def registro_error(error_data: dict):
     async with AsyncSessionLocal() as db:
         try:
@@ -116,3 +117,22 @@ async def actualizar_stast(valores_upd: ActualizarEstadisticas):
                 success_registro=False,
                 mensaje=str(error),
             )
+
+
+
+
+async def datos_errores_modelos(db: AsyncSession):
+    try:
+        result = await db.execute(
+                select(ErroresModelos).order_by(ErroresModelos.Proceso.asc())
+            )
+        errores = result.scalars().all()
+        data=ErrorModeloResponse(errores)
+        return RespuestaFuncion(data_registro=data)
+
+    except Exception as error:
+        await db.rollback()
+        return RespuestaFuncion(
+            success_registro=False,
+            mensaje=str(error),
+        )

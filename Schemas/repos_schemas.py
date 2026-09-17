@@ -4,6 +4,9 @@ from typing import List, Optional
 from Models.EstadisticasModelos import OrigenEstadisticaEnum,EstadoEstadisticaEnum
 from Models.EstadisticasModelosDetalle import TipoOperacionEnum
 from Models.ErroresProcesamientoImagenesPendientes import TipoErrorEnum
+from Models.ErroresModelos import ErroresModelos
+
+
 
 class RegistroEstadisticaDetalle(BaseModel):
     tipo_operacion: TipoOperacionEnum
