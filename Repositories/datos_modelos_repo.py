@@ -1,7 +1,5 @@
-import re
-import time
 
-from sqlalchemy import select
+from sqlalchemy import select,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from Config.settings import AsyncSessionLocal
@@ -11,6 +9,9 @@ from Models.EstadisticasModelosDetalle import EstadisticasModelosDetalle
 from Models.EstadisticasModelosImagenes import EstadisticasModelosImagenes
 from Schemas.Respuestas import RespuestaFuncion
 from Schemas.repos_schemas import RegistroEstadisticas,ActualizarEstadisticas
+
+import math
+
 
 async def registro_error(error_data: dict):
     async with AsyncSessionLocal() as db:
@@ -121,14 +122,30 @@ async def actualizar_stast(valores_upd: ActualizarEstadisticas):
 
 
 
-async def datos_errores_modelos(db: AsyncSession):
+
+async def datos_errores_modelos(db: AsyncSession, page: int = 1, page_size: int = 20):
     try:
+        offset = (page - 1) * page_size
+
+        # Total de registros (para calcular total_pages)
+        total_result = await db.execute(select(func.count()).select_from(ErroresModelos))
+        total = total_result.scalar_one()
+
+        # Registros de la página actual
         result = await db.execute(
-                select(ErroresModelos).order_by(ErroresModelos.Proceso.asc())
-            )
+            select(ErroresModelos)
+            .order_by(ErroresModelos.Proceso.asc())
+            .offset(offset)
+            .limit(page_size)
+        )
         errores = result.scalars().all()
-        
-        return RespuestaFuncion(data_registro=errores)
+
+        return RespuestaFuncion(
+            data_registro={
+                "items": errores,
+                "total": total,
+            }
+        )
 
     except Exception as error:
         await db.rollback()

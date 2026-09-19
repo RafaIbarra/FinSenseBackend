@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.Empresas import Empresas
 from Schemas.Respuestas import RespuestaFuncion
-from Schemas.response_schemas import EmpresasResponse
+
 from Utils.error_utils import limpiar_mensaje_error_bd
 
 async def listar_empresas(db: AsyncSession):

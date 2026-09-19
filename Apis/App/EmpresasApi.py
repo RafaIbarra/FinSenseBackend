@@ -10,7 +10,7 @@ from Repositories.empresas_repo import (
     obtener_empresa,
     registrar,
 )
-from Schemas.response_schemas import EmpresasResponse
+from Schemas.ApisResponseSchemas.empresas_response_schema import EmpresasResponse
 
 router_empresas = generar_router_app_privada('empresas')
 

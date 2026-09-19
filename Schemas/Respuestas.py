@@ -3,6 +3,9 @@ from typing import Any, Optional,List
 from Schemas.integrations_schemas import FacturaExtraida,ClasificacionGasto
 from Models.MovimientosGastos import TipoRegistroEnum
 from Schemas.r2_storage_schemas import RespuestaImagenesSubidas
+from pydantic import BaseModel
+from typing import Generic, TypeVar
+
 class RespuestaFuncion(BaseModel):
     success_registro: Optional[bool] = True
     mensaje: Optional[str] = None
@@ -22,5 +25,14 @@ class RespuestaProcesamientoImgFacturas(BaseModel):
     tipo_registro: Optional[TipoRegistroEnum] = None
     id_stats: int=0
     mensaje_error:str=""
-   
+
+
+
+T = TypeVar("T")
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
     

@@ -22,6 +22,7 @@ from Apis.Admin.DatosModelosApi import router_models
 from Apis.App.ListadosGastosApi import router_movimientos_listados
 from Apis.App.TestsApi import router_tests
 from Apis.Admin.AdminApi import router_admin
+from Apis.Admin.DatosUsuariosApi import router_admin_users
 from Common.rate_limit_middleware import default_rate_limiter,rate_limit
 from Common.security_headers import SecurityHeadersMiddleware
 
@@ -99,6 +100,7 @@ app.include_router(router_empresas)
 app.include_router(router_models)
 app.include_router(router_tests)
 app.include_router(router_user_config)
+app.include_router(router_admin_users)
 
 
 

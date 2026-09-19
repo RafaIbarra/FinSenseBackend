@@ -27,7 +27,7 @@ _PATRONES_SIN_CODIGO = (
 )
 
 
-def _clasificar_error(mensaje: str) -> str:
+def clasificar_error(mensaje: str) -> str:
     """Clasifica un mensaje de error de un modelo/IA según su código HTTP o patrón conocido."""
     if not mensaje:
         return "Desconocido"
@@ -44,9 +44,9 @@ def _clasificar_error(mensaje: str) -> str:
     return "Desconocido"
 
 
-def error_a_dict(error: ErroresModelos) -> dict:
-    """Convierte una fila de ErroresModelos en dict, agregando la clasificación TipoError."""
-    data = {columna.name: getattr(error, columna.name) for columna in error.__table__.columns}
+# def error_a_dict(error: ErroresModelos) -> dict:
+#     """Convierte una fila de ErroresModelos en dict, agregando la clasificación TipoError."""
+#     data = {columna.name: getattr(error, columna.name) for columna in error.__table__.columns}
 
-    data["TipoError"] = _clasificar_error(data.get("RespuestaError") or "")
-    return data
+#     data["TipoError"] = clasificar_error(data.get("RespuestaError") or "")
+#     return data

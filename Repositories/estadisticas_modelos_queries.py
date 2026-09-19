@@ -12,6 +12,7 @@ async def datos_estadisticas_modelos(db: AsyncSession):
                     .options(
                         selectinload(EstadisticasModelos.detalles),
                         selectinload(EstadisticasModelos.imagenes),
+                        selectinload(EstadisticasModelos.movimiento),
                     )
                     .order_by(EstadisticasModelos.FechaRegistro.desc())
                 )
