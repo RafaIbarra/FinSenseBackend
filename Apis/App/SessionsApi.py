@@ -93,8 +93,12 @@ async def login(
     response: Response,
     username: str = Form(...),
     password: str = Form(...),
+    sesion_admin: str = Form("0", alias="sesion-admin"),
     db: AsyncSession = Depends(get_db),
 ):
+    
+    sesion_admin=bool(int(sesion_admin))
+    
     # 1. Autenticar usuario
     result = await db.execute(
         select(Usuarios).where(Usuarios.UserName == username)
@@ -102,7 +106,9 @@ async def login(
     user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=401, detail="Usuario incorrecto")
-
+    if sesion_admin:
+        if not user.IsAdmin:
+            raise HTTPException(status_code=401, detail="El usuario no es administrador")    
     if not verify_password(password, user.Password):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 

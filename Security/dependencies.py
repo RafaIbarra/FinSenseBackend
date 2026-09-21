@@ -16,7 +16,7 @@ from Models.Usuarios import Usuarios # ajustá el import según cómo se llame e
 
 async def _validar_core(request: Request, db: AsyncSession, requiere_admin: bool = False) -> dict:
     raw_token = request.cookies.get(ACCESS_COOKIE)
-
+    
     if not raw_token:
         auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
         if auth_header and auth_header.lower().startswith("bearer "):
