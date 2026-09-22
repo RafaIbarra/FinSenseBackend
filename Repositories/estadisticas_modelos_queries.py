@@ -5,7 +5,7 @@ from Models.EstadisticasModelos import EstadisticasModelos
 from Schemas.Respuestas import RespuestaFuncion
 from Schemas.ApisResponseSchemas.datos_modelos_response_shema import DatosEstadisticosSchema,ResponseSchema,EstadisticasSchema
 from fastapi.encoders import jsonable_encoder
-from Utils.calculo_estadisticas_modelos import calcular_data_tokens
+from Utils.calculo_estadisticas_modelos import calcular_estadisticas
 from Utils.error_utils import limpiar_mensaje_error_bd
 async def datos_estadisticas_modelos(db: AsyncSession):
     try:
@@ -38,8 +38,11 @@ async def datos_modelos(db: AsyncSession):
                     .order_by(EstadisticasModelos.FechaRegistro.desc())
                 )
         valores = result.scalars().all()
+        
+
         datos_stats = [DatosEstadisticosSchema.model_validate(valor)for valor in valores]
-        data_tokens = calcular_data_tokens(valores)
+        
+        data_tokens = calcular_estadisticas(valores)
         resultado=[
             ResponseSchema(
                 estadisticas=EstadisticasSchema(
