@@ -40,21 +40,21 @@ async def datos_modelos(db: AsyncSession):
         valores = result.scalars().all()
         
 
-        datos_stats = [DatosEstadisticosSchema.model_validate(valor)for valor in valores]
+        # datos_stats = [DatosEstadisticosSchema.model_validate(valor)for valor in valores]
         
         data_tokens = calcular_estadisticas(valores)
-        resultado=[
-            ResponseSchema(
-                estadisticas=EstadisticasSchema(
-                    data_tokens=data_tokens
-                    ,detalles_registros=datos_stats
-                )
-            )
-        ]
+        # resultado=[
+        #     ResponseSchema(
+        #         estadisticas=EstadisticasSchema(
+        #             data_tokens=data_tokens
+        #             ,detalles_registros=datos_stats
+        #         )
+        #     )
+        # ]
         
         
 
-        return RespuestaFuncion(data_registro=resultado)
+        return RespuestaFuncion(data_registro=data_tokens)
     except Exception as e:
         await db.rollback()
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))

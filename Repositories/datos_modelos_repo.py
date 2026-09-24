@@ -134,7 +134,7 @@ async def datos_errores_modelos(db: AsyncSession, page: int = 1, page_size: int 
         # Registros de la página actual
         result = await db.execute(
             select(ErroresModelos)
-            .order_by(ErroresModelos.Proceso.asc())
+            .order_by(ErroresModelos.Id.desc())
             .offset(offset)
             .limit(page_size)
         )

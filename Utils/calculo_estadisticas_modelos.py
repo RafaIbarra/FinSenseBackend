@@ -425,36 +425,38 @@ def calcular_estadisticas(valores):
         # PORCENTAJES CONTRA EL TOTAL GENERAL
         # ======================================================
 
-        porcentaje_input = (
-            tokens["InputTokens"]
-            / total_general["InputTokens"]
-            * 100
+        porcentaje_input = round(
+            tokens["InputTokens"] / total_general["InputTokens"] * 100
             if total_general["InputTokens"]
-            else 0
+            else 0,
+            2
         )
 
-        porcentaje_output = (
+        porcentaje_output = round(
             tokens["OutputTokens"]
             / total_general["OutputTokens"]
             * 100
             if total_general["OutputTokens"]
-            else 0
+            else 0,
+            2
         )
 
-        porcentaje_thoughts = (
+        porcentaje_thoughts = round(
             tokens["ThoughtsTokens"]
             / total_general["ThoughtsTokens"]
             * 100
             if total_general["ThoughtsTokens"]
-            else 0
+            else 0,
+            2
         )
 
-        porcentaje_total = (
+        porcentaje_total = round(
             tokens["TotalTokens"]
             / total_general["TotalTokens"]
             * 100
             if total_general["TotalTokens"]
-            else 0
+            else 0,
+            2
         )
 
         # ======================================================
