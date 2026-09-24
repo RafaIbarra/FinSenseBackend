@@ -24,6 +24,9 @@ async def listar(
         "status": "success",
         "empresas":modelos
     }
+
+
+
 @router_models.get("/errores-modelos", response_model=PaginatedResponse[ErroresModelosResponse])
 async def listar(
     request: Request,

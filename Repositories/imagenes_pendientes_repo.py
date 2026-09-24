@@ -1,13 +1,13 @@
 
 from sqlalchemy import  select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload,load_only
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import  List,Tuple
 
 from Models.ImagenesPendientes import ImagenesPendientes
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
-
+from Models.Usuarios import Usuarios
 
 from Integrations.r2_storage import *
 from Schemas.Respuestas import RespuestaFuncion
@@ -135,3 +135,5 @@ async def listado_imagenes_pendientes(db: AsyncSession):
     except Exception as e:
             await db.rollback()
             return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
+
+
