@@ -160,6 +160,7 @@ async def registro(
         id=int(body.id)
         id_stas=int(body.id_stas)
         # ── 1. VALIDACIÓN DE FACTURA ──
+        
         if not factura.data_correct:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -185,53 +186,67 @@ async def registro(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=registro_empresa.mensaje,
             )
+        if body.clasificacion:
+            # ── 4. ETIQUETAS ──
+            nombres_etiquetas = [e.etiqueta for e in body.clasificacion.etiquetas]
+            
+            registros_etiquetas = await obtener_o_crear_etiquetas(db, nombres_etiquetas)
+            if not registros_etiquetas.success_registro:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=registros_etiquetas.mensaje,
+                )
+            
+            # data_registro = [92, 110] → {"Alimentacion": 92, "Envases": 110}
+            mapa_etiquetas = dict(zip(nombres_etiquetas, registros_etiquetas.data_registro))
 
-        # ── 4. ETIQUETAS ──
-        nombres_etiquetas = [e.etiqueta for e in body.clasificacion.etiquetas]
-        
-        registros_etiquetas = await obtener_o_crear_etiquetas(db, nombres_etiquetas)
-        if not registros_etiquetas.success_registro:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=registros_etiquetas.mensaje,
+            # ── 5. CATEGORÍA ──
+            registro_categoria = await obtener_o_crear_categoria(
+                db, body.clasificacion.categoria
             )
-        
-        # data_registro = [92, 110] → {"Alimentacion": 92, "Envases": 110}
-        mapa_etiquetas = dict(zip(nombres_etiquetas, registros_etiquetas.data_registro))
+            if not registro_categoria.success_registro:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=registro_categoria.mensaje,
+                )
+            id_categoria = registro_categoria.data_registro.Id
 
-        # ── 5. CATEGORÍA ──
-        registro_categoria = await obtener_o_crear_categoria(
-            db, body.clasificacion.categoria
-        )
-        if not registro_categoria.success_registro:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=registro_categoria.mensaje,
+            # ── 6. MAPEO CONCEPTO → ETIQUETA ──
+            concepto_a_etiqueta: dict[str, int | None] = {}
+            for etiqueta_obj in body.clasificacion.etiquetas:
+                id_etiqueta = mapa_etiquetas.get(etiqueta_obj.etiqueta)
+                for nombre_concepto in etiqueta_obj.conceptos:
+                    concepto_a_etiqueta[nombre_concepto] = id_etiqueta
+
+            # ── 7. LISTA FINAL DE CONCEPTOS CON SUS ETIQUETAS ──
+            conceptos_con_etiquetas = [
+                {
+                    "id_concepto": id_concepto,
+                    "id_etiqueta": concepto_a_etiqueta.get(nombre_concepto)
+                }
+                for nombre_concepto, id_concepto in mapa_conceptos.items()
+            ]
+
+            ids_etiquetas = list(mapa_etiquetas.values())
+        else:
+            registro_categoria = await obtener_o_crear_categoria(
+                db, "Sin Categoria"
             )
-        id_categoria = registro_categoria.data_registro.Id
-
-        # ── 6. MAPEO CONCEPTO → ETIQUETA ──
-        concepto_a_etiqueta: dict[str, int | None] = {}
-        for etiqueta_obj in body.clasificacion.etiquetas:
-            id_etiqueta = mapa_etiquetas.get(etiqueta_obj.etiqueta)
-            for nombre_concepto in etiqueta_obj.conceptos:
-                concepto_a_etiqueta[nombre_concepto] = id_etiqueta
-
-        # ── 7. LISTA FINAL DE CONCEPTOS CON SUS ETIQUETAS ──
-        conceptos_con_etiquetas = [
-            {
-                "id_concepto": id_concepto,
-                "id_etiqueta": concepto_a_etiqueta.get(nombre_concepto)
-            }
-            for nombre_concepto, id_concepto in mapa_conceptos.items()
-        ]
-
-        ids_etiquetas = list(mapa_etiquetas.values())
-
+            if not registro_categoria.success_registro:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=registro_categoria.mensaje,
+                )
+            id_categoria = registro_categoria.data_registro.Id
+            conceptos_con_etiquetas=[]
+            ids_etiquetas=[]
+        if body.imagenes:
         # ── 8. IMÁGENES ──
-        imagenes = body.imagenes.urls_img
-        type_url = body.imagenes.tipo_url
-
+            imagenes = body.imagenes.urls_img
+            type_url = body.imagenes.tipo_url
+        else:
+            imagenes=[]
+            type_url=""
         # ── 9. REGISTRO ──
         movimiento_data = {
             "id": id,
@@ -249,7 +264,11 @@ async def registro(
             "conceptos": conceptos_con_etiquetas,
             "etiquetas": ids_etiquetas,
             "model_img": factura.Model,
-            "model_clasificador": body.clasificacion.modelo_clasificador,
+            "model_clasificador":  (
+    body.clasificacion.modelo_clasificador
+    if body.clasificacion
+    else ""
+),
             "id_stas":id_stas
         }
         
