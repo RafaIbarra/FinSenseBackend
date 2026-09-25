@@ -8,7 +8,7 @@ from fastapi import Depends, Form, HTTPException, Request, Query, status
 from Config.settings import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from Schemas.ApisResponseSchemas.datos_usuarios_response_schema import UsuarioResumenResponse
-from Repositories.imagenes_pendientes_repo import admin_listado_imagenes_pendientes
+# from Repositories.imagenes_pendientes_repo import admin_listado_imagenes_pendientes
 from .router_admin import generar_router_admin
 
 router_admin_tasks = generar_router_admin('tasks')
@@ -96,12 +96,12 @@ async def leer_log(nombre_archivo: str):
         "contenido": contenido,
     }
 
-@router_admin_tasks.get("/taks-pendientes")
-async def listar_tareas(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
+# @router_admin_tasks.get("/taks-pendientes")
+# async def listar_tareas(
+#     request: Request,
+#     db: AsyncSession = Depends(get_db),
+# ):
     
-    datos = await admin_listado_imagenes_pendientes(db)
+#     datos = await admin_listado_imagenes_pendientes(db)
     
-    return datos.data_registro
+#     return datos.data_registro
