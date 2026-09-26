@@ -81,9 +81,10 @@ def _resumen_imagenes_pendientes(registros) -> dict:
     }
     total_pendientes["TotalTamannoImagen_MB"] = calcular_mb(total_pendientes["TotalTamannoImagenes"])
 
-    por_procesado = defaultdict(
-        lambda: {"CantidadTareas": 0, "TotalTamannoImagenes": 0, "CantidadImagenes": 0}
-    )
+    por_procesado = {
+        procesado: {"CantidadTareas": 0, "TotalTamannoImagenes": 0, "CantidadImagenes": 0}
+        for procesado in (False, True)
+    }
 
     for item in detalle:
         grupo = por_procesado[item["Procesado"]]
@@ -143,7 +144,7 @@ def _resumen_envio_correos(registros) -> dict:
             "TipoDestinatario": tipo_destinatario,
         })
 
-    por_procesado_general = defaultdict(int)
+    por_procesado_general = {False: 0, True: 0}
     for item in detalle:
         por_procesado_general[item["Procesado"]] += 1
 

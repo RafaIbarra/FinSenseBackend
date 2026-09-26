@@ -198,6 +198,7 @@ async def movimientos_usuario_gastos(
                 if mes == 0
                 else date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
             )
+            
             filtros.extend(
                 [
                     MovimientosGastos.FechaGasto >= fecha_inicio,

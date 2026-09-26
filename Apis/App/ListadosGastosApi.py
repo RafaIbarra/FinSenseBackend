@@ -12,10 +12,12 @@ router_movimientos_listados = generar_router_app_privada('gastos-listados')
 @router_movimientos_listados.get("/movimientos-usuario")
 async def listar_movimiento_usuario(
     request: Request,
+    anno: int,
+    mes: int,
     db: AsyncSession = Depends(get_db),
 ):
     usuario_id = int(request.state.id_usuario)
-    datos = await movimientos_usuario_gastos(db,usuario_id)
+    datos = await movimientos_usuario_gastos(db,usuario_id, mes, anno)
     
     return datos
 
@@ -53,15 +55,15 @@ async def listar_imagens_usuario(
 @rate_limit(max_requests=5, window_seconds=60)
 async def estadisticas(
     request: Request,
+    anno: int,
+    mes: int,
     db: AsyncSession = Depends(get_db),
 ):
     usuario_id = int(request.state.id_usuario)
-    ahora = datetime.now()
-    año_actual = ahora.year
-    mes_actual = ahora.month -1
+    
     
     # Pasar los parámetros a la función
-    datos = await dashboard_usuario(db, usuario_id, año_actual, mes_actual)
+    datos = await dashboard_usuario(db, usuario_id, anno, mes)
     
     
     return {
