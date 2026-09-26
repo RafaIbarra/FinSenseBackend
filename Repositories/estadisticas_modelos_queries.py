@@ -3,6 +3,7 @@ from sqlalchemy import  select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from Models.EstadisticasModelos import EstadisticasModelos
+from Models.ErroresModelos import ErroresModelos
 from Schemas.Respuestas import RespuestaFuncion
 
 from Utils.error_utils import limpiar_mensaje_error_bd
@@ -36,9 +37,21 @@ async def obtener_datos_modelos(db: AsyncSession):
                     )
                     .order_by(EstadisticasModelos.FechaRegistro.desc())
                 )
-        valores = result.scalars().all()
-                
+        valores_estats = result.scalars().all()
+
+        errores_qs=await db.execute(
+                    select(ErroresModelos)
+                    .order_by(ErroresModelos.Id.desc())
+                )
+        valores_errores=errores_qs.scalars().all()
+        valores={
+                    'estadisticas':valores_estats,
+                    'errores':valores_errores
+                }
+        
         return RespuestaFuncion(data_registro=valores)
+                
+        
         
     except Exception as e:
         await db.rollback()

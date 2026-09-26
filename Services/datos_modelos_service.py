@@ -4,7 +4,7 @@ from Schemas.ApisResponseSchemas.datos_modelos_response_shema import (
 )
 from Schemas.Respuestas import RespuestaFuncion
 from Repositories.estadisticas_modelos_queries import obtener_datos_modelos
-from Utils.calculo_estadisticas_modelos import calcular_estadisticas
+from Utils.resumen_datos_modelos import calcular_estadisticas
 from Utils.error_utils import limpiar_mensaje_error_bd
 async def datos_modelos(db: AsyncSession) -> RespuestaFuncion:
     try:
@@ -13,7 +13,7 @@ async def datos_modelos(db: AsyncSession) -> RespuestaFuncion:
         if not respuesta_repo.success_registro:
             return respuesta_repo
 
-        registros = respuesta_repo.data_registro
+        registros = respuesta_repo.data_registro["estadisticas"]
         
         calculo = calcular_estadisticas(registros)
         estadisticas = EstadisticasSchema.desde_calculo(calculo, registros)

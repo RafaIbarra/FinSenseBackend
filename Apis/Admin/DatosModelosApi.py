@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Integrations.groq_clasificador import disponibilidad
 from Repositories.datos_modelos_repo import datos_errores_modelos
 from Repositories.estadisticas_modelos_queries import datos_estadisticas_modelos
-from Services.estadisticas_modelos_service import datos_modelos
+from Services.datos_modelos_service import datos_modelos
 from Schemas.ApisResponseSchemas.estadisticas_modelos_response_schema import EstadisticasModelosResponse
 from Schemas.ApisResponseSchemas.datos_modelos_response_shema import ResponseDatosModelosSchema
 from Schemas.ApisResponseSchemas.errores_modelos_schemas import ErroresModelosResponse
