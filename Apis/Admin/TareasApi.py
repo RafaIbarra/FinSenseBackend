@@ -9,6 +9,8 @@ from Config.settings import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from Schemas.ApisResponseSchemas.datos_usuarios_response_schema import UsuarioResumenResponse
 # from Repositories.imagenes_pendientes_repo import admin_listado_imagenes_pendientes
+from Repositories.tasks_queries import obtener_datos_tareas
+from Services.datos_tareas_pendientes_service import datos_tareas
 from .router_admin import generar_router_admin
 
 router_admin_tasks = generar_router_admin('tasks')
@@ -96,12 +98,26 @@ async def leer_log(nombre_archivo: str):
         "contenido": contenido,
     }
 
-# @router_admin_tasks.get("/taks-pendientes")
-# async def listar_tareas(
-#     request: Request,
-#     db: AsyncSession = Depends(get_db),
-# ):
+@router_admin_tasks.get("/taks-pendientes")
+async def listar_tareas(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     
-#     datos = await admin_listado_imagenes_pendientes(db)
-    
-#     return datos.data_registro
+    try:
+        datos = await obtener_datos_tareas(db)
+        resumen= await datos_tareas(db)
+        if not datos.success_registro:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=datos.mensaje,
+            )
+
+        return resumen.data_registro
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al obtener estadísticas de modelos: {str(e)}",
+        )

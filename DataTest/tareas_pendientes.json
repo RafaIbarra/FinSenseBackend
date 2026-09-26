@@ -1,0 +1,639 @@
+{
+    "imagenes_pendientes": [
+        {
+            "CodigoTarea": "U_1_F_2026_09_23_T_23_21_40",
+            "Id": 63,
+            "FechaRegistro": "2026-09-24T02:21:41.982267+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-24T03:29:54.460673+00:00",
+            "TamañoImagen": 181940,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260923_232140_9a53402c.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 123,
+            "movimiento": {
+                "Id": 123
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_15_T_00_41_12",
+            "Id": 62,
+            "FechaRegistro": "2026-09-15T03:41:13.344123+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-15T03:47:23.155825+00:00",
+            "TamañoImagen": 98792,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260915_004112_04e9a0ed.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 119,
+            "movimiento": {
+                "Id": 119
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_15_T_00_12_30",
+            "Id": 61,
+            "FechaRegistro": "2026-09-15T03:12:31.967386+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-15T03:46:06.234910+00:00",
+            "TamañoImagen": 103949,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260915_001230_2b7d8fae.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": null,
+            "movimiento": null,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_14_T_23_34_45",
+            "Id": 60,
+            "FechaRegistro": "2026-09-15T02:34:46.371249+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-15T03:41:48.031114+00:00",
+            "TamañoImagen": 333890,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260914_233445_dd27b4a1.png",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": null,
+            "movimiento": null,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_14_T_23_34_19",
+            "Id": 59,
+            "FechaRegistro": "2026-09-15T02:34:21.729384+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-15T03:00:02.861526+00:00",
+            "TamañoImagen": 103949,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260914_233419_c5360483.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 118,
+            "movimiento": {
+                "Id": 118
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_14_T_01_33_54",
+            "Id": 58,
+            "FechaRegistro": "2026-09-14T04:33:56.220356+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-14T04:34:55.992758+00:00",
+            "TamañoImagen": 103949,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260914_013354_0923f484.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 117,
+            "movimiento": {
+                "Id": 117
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_13_T_23_41_20",
+            "Id": 57,
+            "FechaRegistro": "2026-09-14T02:41:21.178903+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-14T02:41:59.347681+00:00",
+            "TamañoImagen": 103949,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260913_234120_ad370061.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 115,
+            "movimiento": {
+                "Id": 115
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_13_T_22_53_28",
+            "Id": 56,
+            "FechaRegistro": "2026-09-14T01:53:30.371234+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-14T01:54:37.890467+00:00",
+            "TamañoImagen": 115116,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260913_225329_16a86754.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 114,
+            "movimiento": {
+                "Id": 114
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_13_T_22_53_28",
+            "Id": 55,
+            "FechaRegistro": "2026-09-14T01:53:30.371234+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-14T01:54:37.890467+00:00",
+            "TamañoImagen": 116446,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260913_225328_330342dd.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 114,
+            "movimiento": {
+                "Id": 114
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_13_T_21_23_31",
+            "Id": 54,
+            "FechaRegistro": "2026-09-14T00:23:33.676656+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-14T01:19:38.550722+00:00",
+            "TamañoImagen": 142113,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260913_212331_3c5b62cb.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 112,
+            "movimiento": {
+                "Id": 112
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "CodigoTarea": "U_1_F_2026_09_01_T_23_46_51",
+            "Id": 53,
+            "FechaRegistro": "2026-09-02T02:46:52.318899+00:00",
+            "Motivo": "prueba",
+            "FechaProcesado": "2026-09-02T02:50:22.643701+00:00",
+            "TamañoImagen": 0,
+            "UrlImagen": "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20260901_234651_4376bb5e.jpeg",
+            "UsuarioId": 1,
+            "Procesado": true,
+            "MovimientoId": 105,
+            "movimiento": {
+                "Id": 105
+            },
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        }
+    ],
+    "envio_correos": [
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_23_T_23_21_40",
+                    "id_reg": 123,
+                    "fecha_hora_procesado": "24/09/26 00:29:54",
+                    "estado": "🟢- Procesado",
+                    "observacion": "Factura registrada, N°: 001-001-0000825; Empresa: IMPERIO digital INSUMOS PARA SUBLIMAR "
+                }
+            ],
+            "FechaRegistro": "2026-09-24T03:31:19.808932+00:00",
+            "Procesado": false,
+            "Id": 16,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": null,
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_23_T_23_21_40",
+                    "id_reg": 122,
+                    "fecha_hora_procesado": "24/09/26 00:19:00",
+                    "estado": "🟢- Procesado",
+                    "observacion": "Factura registrada, N°: 001-001-0000825; Empresa: IMPERIO digital INSUMOS PARA SUBLIMAR "
+                }
+            ],
+            "FechaRegistro": "2026-09-24T03:20:20.531172+00:00",
+            "Procesado": true,
+            "Id": 15,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-24T03:22:02.474204+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_23_T_23_21_40",
+                    "id_reg": 0,
+                    "fecha_hora_procesado": "24/09/26 00:09:32",
+                    "estado": "🔴- Error ",
+                    "observacion": "Ya existe un movimiento registrado con la factura 001-001-0000825 para la empresa IMPERIO digital INSUMOS PARA SUBLIMAR"
+                }
+            ],
+            "FechaRegistro": "2026-09-24T03:10:52.697023+00:00",
+            "Procesado": true,
+            "Id": 14,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": null,
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_23_T_23_21_40",
+                    "id_reg": 0,
+                    "fecha_hora_procesado": "23/09/26 23:59:03",
+                    "estado": "🔴- Error ",
+                    "observacion": "Error en servicio de modelo"
+                }
+            ],
+            "FechaRegistro": "2026-09-24T03:01:01.305521+00:00",
+            "Procesado": true,
+            "Id": 13,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-24T03:04:23.710696+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_23_T_23_21_40",
+                    "id_reg": 121,
+                    "fecha_hora_procesado": "23/09/26 23:51:44",
+                    "estado": "🟢- Procesado",
+                    "observacion": "Factura registrada, N°: 001-001-00000825; Empresa: IMPERIO digital INSUMOS PARA SUBLIMAR "
+                }
+            ],
+            "FechaRegistro": "2026-09-24T02:53:01.120793+00:00",
+            "Procesado": true,
+            "Id": 12,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-24T03:04:20.151461+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_23_T_23_21_40",
+                    "id_reg": 0,
+                    "fecha_hora_procesado": "23/09/26 23:38:42",
+                    "estado": "🔴- Error ",
+                    "observacion": ""
+                }
+            ],
+            "FechaRegistro": "2026-09-24T02:40:02.367780+00:00",
+            "Procesado": true,
+            "Id": 11,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-24T02:45:55.137095+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_15_T_00_41_12",
+                    "id_reg": 119,
+                    "fecha_hora_procesado": "15/09/26 00:47:23"
+                }
+            ],
+            "FechaRegistro": "2026-09-15T03:48:44.429176+00:00",
+            "Procesado": true,
+            "Id": 10,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-15T03:48:48.062173+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_14_T_23_34_19",
+                    "id_reg": 118,
+                    "fecha_hora_procesado": "15/09/26 00:00:02"
+                }
+            ],
+            "FechaRegistro": "2026-09-15T03:03:52.317488+00:00",
+            "Procesado": true,
+            "Id": 9,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-15T03:03:59.654010+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_14_T_01_33_54",
+                    "id_reg": 117,
+                    "fecha_hora_procesado": "14/09/26 01:34:55"
+                }
+            ],
+            "FechaRegistro": "2026-09-14T04:36:37.112971+00:00",
+            "Procesado": true,
+            "Id": 8,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-14T04:36:41.218665+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_13_T_23_41_20",
+                    "id_reg": 115,
+                    "fecha_hora_procesado": "13/09/26 23:41:59"
+                }
+            ],
+            "FechaRegistro": "2026-09-14T02:43:32.667891+00:00",
+            "Procesado": true,
+            "Id": 7,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-14T02:43:37.005638+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "URLS TEMPORALES ELIMINADAS",
+            "Data": [
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260910_231317_e8cb157d.jpeg",
+                    "FechaRegistro": "11/09/26 02:13:19",
+                    "FechaEliminacion": "14/09/26 02:06:51"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260910_231804_a23c65c7.jpeg",
+                    "FechaRegistro": "11/09/26 02:18:06",
+                    "FechaEliminacion": "14/09/26 02:06:51"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_205413_cf4a655c.jpeg",
+                    "FechaRegistro": "11/09/26 23:53:53",
+                    "FechaEliminacion": "14/09/26 02:06:51"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_210206_83dedad4.jpeg",
+                    "FechaRegistro": "12/09/26 00:01:43",
+                    "FechaEliminacion": "14/09/26 02:06:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_215605_5a2a015f.jpeg",
+                    "FechaRegistro": "12/09/26 00:54:57",
+                    "FechaEliminacion": "14/09/26 02:06:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_220044_663f2fb7.jpeg",
+                    "FechaRegistro": "12/09/26 01:00:08",
+                    "FechaEliminacion": "14/09/26 02:06:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_220610_1b233b0e.jpeg",
+                    "FechaRegistro": "12/09/26 01:05:37",
+                    "FechaEliminacion": "14/09/26 02:06:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_234817_040b8ca6.jpeg",
+                    "FechaRegistro": "12/09/26 02:47:08",
+                    "FechaEliminacion": "14/09/26 02:06:53"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260911_234818_48ce0e94.jpeg",
+                    "FechaRegistro": "12/09/26 02:47:08",
+                    "FechaEliminacion": "14/09/26 02:06:53"
+                }
+            ],
+            "FechaRegistro": "2026-09-14T02:06:53.409969+00:00",
+            "Procesado": true,
+            "Id": 6,
+            "NombreTemplate": "urls_temp_eliminadas.html",
+            "ContextKey": "resumen",
+            "FechaProcesado": "2026-09-14T02:14:44.989194+00:00",
+            "UsuarioId": null,
+            "usuario": null
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_13_T_22_53_28",
+                    "id_reg": 114,
+                    "fecha_hora_procesado": "13/09/26 22:54:37"
+                }
+            ],
+            "FechaRegistro": "2026-09-14T01:56:53.461008+00:00",
+            "Procesado": true,
+            "Id": 5,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-14T02:12:41.023764+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "URLS TEMPORALES ELIMINADAS",
+            "Data": [
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260902_222933_1235918b.jpeg",
+                    "FechaRegistro": "03/09/26 01:29:36",
+                    "FechaEliminacion": "03/09/26 02:39:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260902_223602_ae3997f2.jpeg",
+                    "FechaRegistro": "03/09/26 01:36:05",
+                    "FechaEliminacion": "03/09/26 02:39:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260902_225058_8dcefe34.jpeg",
+                    "FechaRegistro": "03/09/26 01:51:01",
+                    "FechaEliminacion": "03/09/26 02:39:52"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260902_225414_52e2547b.jpeg",
+                    "FechaRegistro": "03/09/26 01:54:15",
+                    "FechaEliminacion": "03/09/26 02:39:53"
+                },
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260902_230157_b3adb5fc.jpeg",
+                    "FechaRegistro": "03/09/26 02:01:59",
+                    "FechaEliminacion": "03/09/26 02:39:53"
+                }
+            ],
+            "FechaRegistro": "2026-09-03T02:39:53.415012+00:00",
+            "Procesado": true,
+            "Id": 4,
+            "NombreTemplate": "urls_temp_eliminadas.html",
+            "ContextKey": "resumen",
+            "FechaProcesado": "2026-09-14T02:10:35.751124+00:00",
+            "UsuarioId": null,
+            "usuario": null
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "URLS TEMPORALES ELIMINADAS",
+            "Data": [
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260902_205053_db0b67dc.png",
+                    "FechaRegistro": "02/09/26 23:50:54",
+                    "FechaEliminacion": "03/09/26 00:39:26"
+                }
+            ],
+            "FechaRegistro": "2026-09-03T00:39:26.651516+00:00",
+            "Procesado": true,
+            "Id": 3,
+            "NombreTemplate": "urls_temp_eliminadas.html",
+            "ContextKey": "resumen",
+            "FechaProcesado": "2026-09-14T02:08:30.704195+00:00",
+            "UsuarioId": null,
+            "usuario": null
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "Registro de imágenes pendientes procesadas",
+            "Data": [
+                {
+                    "codigo_tarea": "U_1_F_2026_09_01_T_23_46_51",
+                    "id_reg": 105,
+                    "fecha_hora_procesado": "01/09/26 23:50:22"
+                }
+            ],
+            "FechaRegistro": "2026-09-02T02:52:46.531907+00:00",
+            "Procesado": true,
+            "Id": 2,
+            "NombreTemplate": "registro_pendiente.html",
+            "ContextKey": "registros",
+            "FechaProcesado": "2026-09-02T02:57:21.916531+00:00",
+            "UsuarioId": 1,
+            "usuario": {
+                "Id": 1,
+                "UserName": "lucas"
+            }
+        },
+        {
+            "Destinatario": "blasrafael1986@gmail.com",
+            "Asunto": "URLS TEMPORALES ELIMINADAS",
+            "Data": [
+                {
+                    "Nombre y Apellido Usuario": "Lucas Ibarra",
+                    "Url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260901_234635_1bc4b05e.jpeg",
+                    "FechaRegistro": "02/09/26 02:46:36",
+                    "FechaEliminacion": "02/09/26 02:49:45"
+                }
+            ],
+            "FechaRegistro": "2026-09-02T02:49:45.861027+00:00",
+            "Procesado": true,
+            "Id": 1,
+            "NombreTemplate": "urls_temp_eliminadas.html",
+            "ContextKey": "resumen",
+            "FechaProcesado": "2026-09-02T02:55:17.979971+00:00",
+            "UsuarioId": null,
+            "usuario": null
+        }
+    ]
+}
