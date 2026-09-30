@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, Request,status
-from datetime import datetime
+from datetime import datetime,date,timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from Config.settings import get_db
 # from Common.routers_factory import generar_router
@@ -12,12 +12,14 @@ router_movimientos_listados = generar_router_app_privada('gastos-listados')
 @router_movimientos_listados.get("/movimientos-usuario")
 async def listar_movimiento_usuario(
     request: Request,
-    anno: int,
-    mes: int,
+    desde: date,
+    hasta: date,
     db: AsyncSession = Depends(get_db),
 ):
     usuario_id = int(request.state.id_usuario)
-    datos = await movimientos_usuario_gastos(db,usuario_id, mes, anno)
+    datos = await movimientos_usuario_gastos(
+        db, usuario_id, desde, hasta
+    )
     
     return datos
 
@@ -31,7 +33,17 @@ async def listar_movimiento_usuario(
     db: AsyncSession = Depends(get_db),
 ):
     usuario_id = int(request.state.id_usuario)
-    datos = await movimientos_usuario_gastos(db,usuario_id, mes, anno)
+    if anno == 0 and mes == 0:
+        fecha_desde, fecha_hasta = date.min, date.max
+    elif mes == 0:
+        fecha_desde, fecha_hasta = date(anno, 1, 1), date(anno, 12, 31)
+    else:
+        fecha_desde = date(anno, mes, 1)
+        fecha_hasta = date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
+        fecha_hasta -= timedelta(days=1)
+    datos = await movimientos_usuario_gastos(
+        db, usuario_id, fecha_desde, fecha_hasta
+    )
     
     return datos
         
@@ -55,15 +67,15 @@ async def listar_imagens_usuario(
 @rate_limit(max_requests=5, window_seconds=60)
 async def estadisticas(
     request: Request,
-    anno: int,
-    mes: int,
+    desde: date,
+    hasta: date,
     db: AsyncSession = Depends(get_db),
 ):
     usuario_id = int(request.state.id_usuario)
     
     
     # Pasar los parámetros a la función
-    datos = await dashboard_usuario(db, usuario_id, anno, mes)
+    datos = await dashboard_usuario(db, usuario_id, desde, hasta)
     
     
     return {

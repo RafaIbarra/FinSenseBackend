@@ -51,17 +51,16 @@ async def datos_iva_mes(db: AsyncSession, id_usuario: int, anno: int, mes: int):
         return RespuestaFuncion(success_registro=False,mensaje=limpiar_mensaje_error_bd(str(exc)))
     
 
-async def dashboard_usuario(db: AsyncSession, id_usuario: int, anno: int, mes: int):
-    fecha_inicio = date(anno, mes, 1)
-    fecha_fin = date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
-
+async def dashboard_usuario(
+    db: AsyncSession, id_usuario: int, desde_fecha: date, hasta_fecha: date
+):
     result = await db.execute(
         select(MovimientosGastos)
         .where(
             MovimientosGastos.UsuarioId == id_usuario,
             MovimientosGastos.IsActive.is_(True),
-            MovimientosGastos.FechaGasto >= fecha_inicio,
-            MovimientosGastos.FechaGasto < fecha_fin,
+            MovimientosGastos.FechaGasto >= desde_fecha,
+            MovimientosGastos.FechaGasto <= hasta_fecha,
         )
         .options(
             selectinload(MovimientosGastos.empresa),
@@ -96,9 +95,8 @@ async def dashboard_usuario(db: AsyncSession, id_usuario: int, anno: int, mes: i
     por_empresa = {}
     por_categoria = {}
     por_etiqueta = {}
-    primera_semana = fecha_inicio - timedelta(days=fecha_inicio.weekday())
-    ultima_fecha_mes = fecha_fin - timedelta(days=1)
-    ultima_semana = ultima_fecha_mes - timedelta(days=ultima_fecha_mes.weekday())
+    primera_semana = desde_fecha - timedelta(days=desde_fecha.weekday())
+    ultima_semana = hasta_fecha - timedelta(days=hasta_fecha.weekday())
     por_semana = {}
     semana = primera_semana
     while semana <= ultima_semana:
@@ -168,43 +166,21 @@ async def dashboard_usuario(db: AsyncSession, id_usuario: int, anno: int, mes: i
     }
 
 async def movimientos_usuario_gastos(
-    db: AsyncSession, id_usuario: int, mes: int = 0, anno: int = 0
+    db: AsyncSession, id_usuario: int, desde_fecha: date, hasta_fecha: date
 ):
     try: 
-        if anno < 0 or mes < 0:
+        if hasta_fecha < desde_fecha:
             return RespuestaFuncion(
                 success_registro=False,
-                mensaje="El año y el mes no pueden ser negativos.",
-            )
-        if mes > 0 and anno == 0:
-            return RespuestaFuncion(
-                success_registro=False,
-                mensaje="Debe indicar un año cuando especifica un mes.",
-            )
-        if anno > 0 and mes != 0 and not 1 <= mes <= 12:
-            return RespuestaFuncion(
-                success_registro=False,
-                mensaje="El mes debe estar entre 1 y 12.",
+                mensaje="La fecha hasta no puede ser anterior a la fecha desde.",
             )
 
         filtros = [
             MovimientosGastos.UsuarioId == id_usuario,
             MovimientosGastos.IsActive.is_(True),
+            MovimientosGastos.FechaGasto >= desde_fecha,
+            MovimientosGastos.FechaGasto <= hasta_fecha,
         ]
-        if anno > 0:
-            fecha_inicio = date(anno, mes or 1, 1)
-            fecha_fin = (
-                date(anno + 1, 1, 1)
-                if mes == 0
-                else date(anno + (mes == 12), 1 if mes == 12 else mes + 1, 1)
-            )
-            
-            filtros.extend(
-                [
-                    MovimientosGastos.FechaGasto >= fecha_inicio,
-                    MovimientosGastos.FechaGasto < fecha_fin,
-                ]
-            )
 
         result = await db.execute(
             select(MovimientosGastos)
