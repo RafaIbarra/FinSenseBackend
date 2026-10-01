@@ -1,0 +1,19 @@
+TiposMediosPago;;;
+Id;Tipo;EsDebito;
+1;TarjetaCredito;NO;
+2;TarjetaDebito;SI;
+3;Efectivo;SI;
+4;Caja Ahorro;SI;
+;;;
+UsuarioMedios;;;
+Id;UsuarioId;TipoMedioPagoId;Nombre
+1;1;1;UENO-QR-TC
+2;1;3;
+3;1;4;UENO-QR
+4;1;1;COOP CAPIATA-VISA
+;;;
+GastoMediosPago;;;
+Id;GastoId;UsuarioMedioId;Monto
+1;1;3;500000
+2;1;1;150000
+3;1;2;200000

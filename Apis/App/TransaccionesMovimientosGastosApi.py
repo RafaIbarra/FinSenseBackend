@@ -132,7 +132,8 @@ async def extraer_clasificar(
             "clasificacion": respuesta.clasificacion,
             "imagenes": respuesta.imagenes,
             "tipo_registro":TipoRegistroEnum.Asistido,
-            'id_stas':respuesta.id_stats
+            'id_stas':respuesta.id_stats,
+            'medio_pago':[]
             
         }
         return data_respuesta
