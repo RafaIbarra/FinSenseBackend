@@ -21,6 +21,7 @@ from Apis.App.EmpresasApi import router_empresas
 from Apis.App.EntidadesApi import router_entidades
 from Apis.App.MarcasTarjetasApi import router_marcas
 from Apis.App.MediosPagosUsuariosApi import router_medios_pagos_usuarios
+from Apis.App.CatalgosGlobalesMediosPagosApi import router_catalogo
 from Apis.App.ListadosGastosApi import router_movimientos_listados
 from Apis.App.TestsApi import router_tests
 
@@ -107,6 +108,7 @@ app.include_router(router_empresas)
 app.include_router(router_entidades)
 app.include_router(router_marcas)
 app.include_router(router_medios_pagos_usuarios)
+app.include_router(router_catalogo)
 
 
 app.include_router(router_models)
