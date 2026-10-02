@@ -12,7 +12,10 @@ from Config.settings import get_db, settings
 from Models.PreferenciasUsuario import PreferenciasUsuario
 from Models.SesionesActivas import SesionesActivas
 from Models.Temas import Temas
+from Models.MediosPagosUsuarios import MediosPagosUsuarios
+from Models.TiposMediosPagos import TiposMediosPagos
 from Models.Usuarios import Usuarios
+from Repositories.medios_pagos_usuario_repo import crear_medio_pago_usuario
 
 from Security.password_utils import verify_password
 from Security.jwt_utils import create_token,validar_token, AuthError
@@ -111,6 +114,36 @@ async def login(
             raise HTTPException(status_code=401, detail="El usuario no es administrador")    
     if not verify_password(password, user.Password):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+
+    resultado_medio_pago = await db.execute(
+        select(MediosPagosUsuarios.Id)
+        .where(MediosPagosUsuarios.UsuarioId == user.Id)
+        .limit(1)
+    )
+    if resultado_medio_pago.scalar_one_or_none() is None:
+        resultado_tipo_efectivo = await db.execute(
+            select(TiposMediosPagos).where(
+                TiposMediosPagos.NombreTipo == "Efectivo"
+            )
+        )
+        tipo_efectivo = resultado_tipo_efectivo.scalars().first()
+        if not tipo_efectivo:
+            raise HTTPException(
+                status_code=500,
+                detail="No existe el tipo de medio de pago Efectivo",
+            )
+
+        resultado_creacion = await crear_medio_pago_usuario(
+            db,
+            user.Id,
+            tipo_efectivo.Id,
+        )
+        if not resultado_creacion.success_registro:
+            raise HTTPException(
+                status_code=500,
+                detail=resultado_creacion.mensaje
+                or "No se pudo crear el medio de pago Efectivo",
+            )
 
     # 2. Detectar tipo de dispositivo
     user_agent = request.headers.get("user-agent", "unknown")

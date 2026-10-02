@@ -265,12 +265,9 @@ async def registro(
             "conceptos": conceptos_con_etiquetas,
             "etiquetas": ids_etiquetas,
             "model_img": factura.Model,
-            "model_clasificador":  (
-    body.clasificacion.modelo_clasificador
-    if body.clasificacion
-    else ""
-),
-            "id_stas":id_stas
+            "model_clasificador":  (body.clasificacion.modelo_clasificador if body.clasificacion else ""),
+            "id_stas":id_stas,
+            "medio_pago":(body.medio_pago if body.medio_pago else [])
         }
         
         

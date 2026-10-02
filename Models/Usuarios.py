@@ -61,6 +61,11 @@ class Usuarios(Base):
         cascade="all, delete-orphan",
     )
 
+    entidades_usuarios = relationship(
+        "EntidadesUsuarios",
+        back_populates="usuario",
+    )
+
     medios_pagos_usuarios = relationship(
         "MediosPagosUsuarios",
         back_populates="usuario",

@@ -8,6 +8,7 @@ from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
+from Models.MovimientosGastosMediosPagos import MovimientosGastosMediosPagos
 from Models.EstadisticasModelos import EstadoEstadisticaEnum
 from Repositories.urls_imagenes_temporales_repo import procesar_urls_temporales
 from Repositories.datos_modelos_repo import actualizar_stast
@@ -179,6 +180,53 @@ async def registrar(db: AsyncSession, movimiento: dict):
         type_url = movimiento.get("type_url", "")
         categoria_id = movimiento.get("id_categoria")
         usuario_id = movimiento.get("user_id")
+        medios_pago = movimiento.get("medio_pago") or []
+
+        medios_pago_nuevos = []
+        if medios_pago:
+            if not isinstance(medios_pago, list):
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje="Los medios de pago deben enviarse como una lista",
+                )
+
+            try:
+                for medio_pago in medios_pago:
+                    if not isinstance(medio_pago, dict):
+                        raise ValueError("Cada medio de pago debe ser un objeto")
+
+                    monto = int(medio_pago.get("monto_medio", medio_pago.get("MontoMedio", medio_pago.get("monto", 0))))
+                    medio_pago_usuario_id = medio_pago.get(
+                        "id_medio",
+                        medio_pago.get("MedioPagoUsuarioId"),
+                    )
+                    canal_pago_id = medio_pago.get(
+                        "canal_pago_id",
+                        medio_pago.get("CanalPagoId"),
+                    )
+
+                    if monto < 0:
+                        raise ValueError("El monto de un medio de pago no puede ser negativo")
+                    if not medio_pago_usuario_id:
+                        raise ValueError("Cada medio de pago debe incluir su id de medio de pago del usuario")
+
+                    medios_pago_nuevos.append({
+                        "MontoMedio": monto,
+                        "MedioPagoUsuarioId": int(medio_pago_usuario_id),
+                        "CanalPagoId": int(canal_pago_id) if canal_pago_id is not None else None,
+                    })
+            except (TypeError, ValueError) as error:
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje=str(error),
+                )
+
+            suma_medios_pago = sum(medio["MontoMedio"] for medio in medios_pago_nuevos)
+            if suma_medios_pago > int(movimiento.get("total", 0)):
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje="La suma de los medios de pago no puede superar el total del movimiento",
+                )
 
         if not categoria_id:
             return RespuestaFuncion(success_registro=False, mensaje="La categoría es obligatoria")
@@ -286,6 +334,20 @@ async def registrar(db: AsyncSession, movimiento: dict):
                             for etiqueta_id in sorted(ids_a_agregar)
                         ])
 
+                if medios_pago:
+                    await db.execute(
+                        delete(MovimientosGastosMediosPagos).where(
+                            MovimientosGastosMediosPagos.MovimientoGastoId == movimiento_id
+                        )
+                    )
+                    db.add_all([
+                        MovimientosGastosMediosPagos(
+                            MovimientoGastoId=movimiento_id,
+                            **medio_pago,
+                        )
+                        for medio_pago in medios_pago_nuevos
+                    ])
+
                 await db.commit()
                 await db.refresh(registro)
             except Exception as exc:
@@ -337,6 +399,15 @@ async def registrar(db: AsyncSession, movimiento: dict):
                             EtiquetaId=etiqueta_id,
                         )
                         for etiqueta_id in movimiento["etiquetas"]
+                    ])
+
+                if medios_pago:
+                    db.add_all([
+                        MovimientosGastosMediosPagos(
+                            MovimientoGastoId=nuevo_movimiento.Id,
+                            **medio_pago,
+                        )
+                        for medio_pago in medios_pago_nuevos
                     ])
 
                 await db.commit()

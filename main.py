@@ -11,19 +11,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from Config.settings import settings, get_db
+
 from Apis.App.UsersApi import router_user_public,router_user_privado
 from Apis.App.ConfiguracionesUsuarioApi import router_user_config
-
 from Apis.App.SessionsApi import router_sesion_protegida,router_sesion_public
 from Apis.App.TransaccionesMovimientosGastosApi import router_movimientos
 from Apis.App.CategoriasGastosApi import router_categorias
 from Apis.App.EmpresasApi import router_empresas
-from Apis.Admin.DatosModelosApi import router_models
+from Apis.App.EntidadesApi import router_entidades
+from Apis.App.MarcasTarjetasApi import router_marcas
+from Apis.App.MediosPagosUsuariosApi import router_medios_pagos_usuarios
 from Apis.App.ListadosGastosApi import router_movimientos_listados
 from Apis.App.TestsApi import router_tests
+
+from Apis.Admin.DatosModelosApi import router_models
 from Apis.Admin.AdminApi import router_admin
 from Apis.Admin.DatosUsuariosApi import router_admin_users
 from Apis.Admin.TareasApi import router_admin_tasks
+
+
 from Common.rate_limit_middleware import default_rate_limiter,rate_limit
 from Common.security_headers import SecurityHeadersMiddleware
 
@@ -98,6 +104,11 @@ app.include_router(router_movimientos)
 app.include_router(router_movimientos_listados)
 app.include_router(router_categorias)
 app.include_router(router_empresas)
+app.include_router(router_entidades)
+app.include_router(router_marcas)
+app.include_router(router_medios_pagos_usuarios)
+
+
 app.include_router(router_models)
 app.include_router(router_tests)
 app.include_router(router_user_config)

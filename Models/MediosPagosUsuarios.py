@@ -13,7 +13,8 @@ class MediosPagosUsuarios(Base):
     TipoMedioPagoId = Column("TipoMedioPagoId", Integer, ForeignKey("TiposMediosPagos.Id"), nullable=False, index=True)
     EntidadUsuarioId = Column("EntidadUsuarioId", Integer, ForeignKey("EntidadesUsuarios.Id"), nullable=True, index=True)
     MarcaTarjetaId = Column("MarcaTarjetaId", Integer, ForeignKey("MarcasTarjetas.Id"), nullable=True, index=True)
-
+    FechaRegistro = Column("FechaRegistro", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    IsActive = Column("IsActive", Boolean, nullable=False, default=True, server_default="true")
     usuario = relationship("Usuarios", back_populates="medios_pagos_usuarios")
     tipo_medio_pago = relationship("TiposMediosPagos", back_populates="medios_pagos_usuarios")
     entidad_usuario = relationship("EntidadesUsuarios", back_populates="medios_pagos_usuarios")

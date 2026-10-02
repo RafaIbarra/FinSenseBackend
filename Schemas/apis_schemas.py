@@ -11,4 +11,5 @@ class RegistroMovimientoGastoRequest(BaseModel):
     imagenes: Optional[RespuestaImagenesSubidas] =None
     tipo_registro: TipoRegistroEnum
     id_stas : int =0  
+    medio_pago:list=[]
 
