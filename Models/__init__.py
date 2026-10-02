@@ -20,7 +20,17 @@ from .EstadisticasModelos import EstadisticasModelos
 from .EstadisticasModelosDetalle import EstadisticasModelosDetalle
 from .EstadisticasModelosImagenes import EstadisticasModelosImagenes
 from .ErroresProcesamientoImagenesPendientes import ErroresProcesamientoImagenesPendientes
+from .CanalesPagos import CanalesPagos
+from .EntidadesUsuarios import EntidadesUsuarios
+from .MarcasTarjetas import MarcasTarjetas
+from .MediosPagosUsuarios import MediosPagosUsuarios
+from .TiposMediosPagos import TiposMediosPagos
+from .MovimientosGastosMediosPagos import MovimientosGastosMediosPagos
 
 __all__ = ["Usuarios", "SesionesActivas", "Empresas", "CategoriasGastos", "EtiquetasGastos", "ConceptosGastos", 
            "MovimientosGastos", "MovimientosGastosImagenes", "MovimientosGastosEtiquetas", "MovimientosGastosConceptos",
-           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", "EnvioCorreos", "Temas", "PreferenciasUsuario", "EstadisticasModelos", "EstadisticasModelosDetalle", "EstadisticasModelosImagenes", "ErroresProcesamientoImagenesPendientes"]
+           "ImagenesPendientes", "ImagenesReportadas", "ImagenesReportadasUrls", "ErroresModelos", "UrlsImagenesTemporales", 
+           "EnvioCorreos", "Temas", "PreferenciasUsuario", "EstadisticasModelos", "EstadisticasModelosDetalle", "EstadisticasModelosImagenes", 
+           "ErroresProcesamientoImagenesPendientes","CanalesPagos","EntidadesUsuarios","MarcasTarjetas","MediosPagosUsuarios","TiposMediosPagos",
+           "MovimientosGastosMediosPagos"
+           ]

@@ -53,6 +53,10 @@ class MovimientosGastos(Base):
         back_populates="movimiento_gasto",
         cascade="all, delete-orphan",
     )
+    medios_pagos = relationship(
+        "MovimientosGastosMediosPagos",
+        back_populates="movimiento_gasto",
+    )
     estadisticas_modelos = relationship(
     "EstadisticasModelos",
     back_populates="movimiento",

@@ -60,3 +60,13 @@ class Usuarios(Base):
         back_populates="usuario",
         cascade="all, delete-orphan",
     )
+
+    medios_pagos_usuarios = relationship(
+        "MediosPagosUsuarios",
+        back_populates="usuario",
+    )
+
+    marcas_tarjetas = relationship(
+        "MarcasTarjetas",
+        back_populates="usuario",
+    )
