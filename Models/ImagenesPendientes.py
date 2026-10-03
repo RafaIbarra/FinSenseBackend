@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Text, Boolean,text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from Config.settings import Base
@@ -32,6 +33,12 @@ class ImagenesPendientes(Base):
         default=0,
         server_default=text("0")
     )
-
+    MediosPagos = Column(
+            "MediosPagos",
+            JSONB,
+            nullable=False,
+            default=list,
+            server_default=text("'[]'::jsonb"),
+        )
     usuario = relationship("Usuarios", back_populates="imagenes_pendientes")
     movimiento = relationship("MovimientosGastos", back_populates="imagenes_pendientes")

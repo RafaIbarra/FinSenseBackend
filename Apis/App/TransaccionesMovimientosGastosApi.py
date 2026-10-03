@@ -10,7 +10,7 @@ from Config.settings import get_db
 
 
 from Schemas.Respuestas import RespuestaProcesamientoImgFacturas
-from Schemas.apis_schemas import RegistroMovimientoGastoRequest
+from Schemas.apis_schemas import RegistroMovimientoGastoRequest,parsear_medios_pago
 
 from Repositories.empresas_repo import obtener_o_crear_empresa
 from Repositories.categorias_gastos_repo import obtener_o_crear_categoria
@@ -293,6 +293,7 @@ async def registro_pendiente(
     request: Request,
     imagenes: List[UploadFile] = File(..., description="1 o 2 imágenes de la factura (jpg, png, webp)"),
     observacion: str = Form(...),
+    medio_pago: str = Form("[]"),
     db: AsyncSession = Depends(get_db),
 ):
     id_usuario = int(request.state.id_usuario)
@@ -307,7 +308,7 @@ async def registro_pendiente(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Máximo 2 imágenes permitidas (factura de 1 o 2 páginas).",
         )
-
+    
     for imagen in imagenes:
         if not imagen.content_type or not imagen.content_type.startswith("image/"):
             raise HTTPException(
@@ -317,7 +318,7 @@ async def registro_pendiente(
 
     try:
         
-        
+        medios_pago = parsear_medios_pago(medio_pago)
         
         imagenes_procesadas = []
         for img in imagenes:
@@ -332,27 +333,15 @@ async def registro_pendiente(
                         detail={ "No se pre procesaron las imagenes"}
                     )
 
-        registro_pendiente=await registrar_imagenes_pendientes(db,id_usuario,imagenes_procesadas,observacion)
+        registro_pendiente=await registrar_imagenes_pendientes(db,id_usuario,imagenes_procesadas,observacion,medios_pago)
         
         if not registro_pendiente.success_registro:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=registro_pendiente.mensaje
                                 )
-        return {'detail':'Sus imagenes fueron puestas como pendientes'}
-        
-        # if not respuesta.procesamiento_correcto:
-            
+        return {'detail':'Registro procesado'}
         
         
-
-        
-        
-        # data_respuesta={
-        #     "factura": respuesta.factura,
-        #     "clasificacion": respuesta.clasificacion,
-        #     "imagenes": respuesta.imagenes,
-        # }
-        # return data_respuesta
     except HTTPException:
         raise
     except (ValueError, RuntimeError) as exc:

@@ -81,6 +81,7 @@ async def obtener_tareas_pendientes(db):
                 "codigo_tarea": registro.CodigoTarea,
                 "usuario_id": registro.UsuarioId,
                 "fecha_registro": registro.FechaRegistro,
+                "medios_pago":registro.MediosPagos,
                 "imagenes": [],
                 "ids": [],
             },
@@ -151,7 +152,7 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
     usuario_id = tarea["usuario_id"]
     urls = tarea["imagenes"]
     ids_pendientes = tarea["ids"]
-
+    medio_pago=tarea["medios_pago"]
     print(f"[TAREA {codigo_tarea}] INICIANDO PROCESAMIENTO]")
 
     paso_actual = ""
@@ -274,7 +275,8 @@ async def procesar_tarea(db, tarea: dict, fecha_procesado: datetime) -> int:
             "etiquetas": ids_etiquetas,
             "model_img": factura.Model,
             "model_clasificador": clasificacion.modelo_clasificador,
-            "id_stas":resultado.id_stats
+            "id_stas":resultado.id_stats,
+             "medio_pago":medio_pago
         }
 
         registro_gasto = await registrar(db, movimiento_data)

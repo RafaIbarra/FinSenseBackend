@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
+from Models.MovimientosGastosMediosPagos import MovimientosGastosMediosPagos
+from Models.MediosPagosUsuarios import MediosPagosUsuarios
+from Models.CanalesPagos import CanalesPagos
 from Models.ImagenesPendientes import ImagenesPendientes
 from Models.Empresas import Empresas
 from Models.CategoriasGastos import CategoriasGastos
@@ -199,6 +202,17 @@ async def movimientos_usuario_gastos(
                 ),
                 selectinload(MovimientosGastos.imagenes),
                 selectinload(MovimientosGastos.imagenes_pendientes),
+                selectinload(MovimientosGastos.medios_pagos)
+                .selectinload(MovimientosGastosMediosPagos.medio_pago_usuario)
+                .selectinload(MediosPagosUsuarios.tipo_medio_pago),
+                selectinload(MovimientosGastos.medios_pagos)
+                .selectinload(MovimientosGastosMediosPagos.medio_pago_usuario)
+                .selectinload(MediosPagosUsuarios.entidad_usuario),
+                selectinload(MovimientosGastos.medios_pagos)
+                .selectinload(MovimientosGastosMediosPagos.medio_pago_usuario)
+                .selectinload(MediosPagosUsuarios.marca_tarjeta),
+                selectinload(MovimientosGastos.medios_pagos)
+                .selectinload(MovimientosGastosMediosPagos.canal_pago),
             )
             .order_by(MovimientosGastos.FechaRegistro.desc())
         )
@@ -264,6 +278,41 @@ async def movimientos_usuario_gastos(
                     for enlace in movimiento.conceptos
                 ],
                 "imagenes": [imagen.UrlImagen for imagen in movimiento.imagenes],
+                "medios_pagos": [
+                    {
+                        "Id": medio_pago.medio_pago_usuario.Id,
+                        "TipoMedioPago": {
+                            "Id": medio_pago.medio_pago_usuario.tipo_medio_pago.Id,
+                            "NombreTipo": medio_pago.medio_pago_usuario.tipo_medio_pago.NombreTipo,
+                        },
+                        "EntidadUsuario": (
+                            {
+                                "Id": medio_pago.medio_pago_usuario.entidad_usuario.Id,
+                                "NombreEntidad": medio_pago.medio_pago_usuario.entidad_usuario.NombreEntidad,
+                            }
+                            if medio_pago.medio_pago_usuario.entidad_usuario
+                            else None
+                        ),
+                        "MarcaTarjeta": (
+                            {
+                                "Id": medio_pago.medio_pago_usuario.marca_tarjeta.Id,
+                                "NombreMarca": medio_pago.medio_pago_usuario.marca_tarjeta.NombreMarca,
+                            }
+                            if medio_pago.medio_pago_usuario.marca_tarjeta
+                            else None
+                        ),
+                        "MontoMedio": medio_pago.MontoMedio,
+                        "CanalPago": (
+                            {
+                                "Id": medio_pago.canal_pago.Id,
+                                "NombreCanal": medio_pago.canal_pago.NombreCanal,
+                            }
+                            if medio_pago.canal_pago
+                            else None
+                        ),
+                    }
+                    for medio_pago in movimiento.medios_pagos
+                ],
             }
             for movimiento in movimientos
         ]
@@ -295,7 +344,81 @@ async def listar_imagenes_pendientes_usuario(db: AsyncSession, id_usuario: int):
     )
     imagenes = result.scalars().all()
 
-    
+    medios_pago_ids = {
+        int(medio_pago["id_medio"])
+        for imagen in imagenes
+        for medio_pago in (imagen.MediosPagos or [])
+    }
+    canales_pago_ids = {
+        int(medio_pago["canal_pago_id"])
+        for imagen in imagenes
+        for medio_pago in (imagen.MediosPagos or [])
+        if medio_pago.get("canal_pago_id") is not None
+    }
+
+    medios_pagos_por_id = {}
+    if medios_pago_ids:
+        medios_result = await db.execute(
+            select(MediosPagosUsuarios)
+            .options(
+                selectinload(MediosPagosUsuarios.tipo_medio_pago),
+                selectinload(MediosPagosUsuarios.entidad_usuario),
+                selectinload(MediosPagosUsuarios.marca_tarjeta),
+            )
+            .where(MediosPagosUsuarios.Id.in_(medios_pago_ids))
+        )
+        medios_pagos_por_id = {
+            medio.Id: medio for medio in medios_result.scalars().all()
+        }
+
+    canales_pagos_por_id = {}
+    if canales_pago_ids:
+        canales_result = await db.execute(
+            select(CanalesPagos).where(CanalesPagos.Id.in_(canales_pago_ids))
+        )
+        canales_pagos_por_id = {
+            canal.Id: canal for canal in canales_result.scalars().all()
+        }
+
+    def serializar_medios_pagos(medios_pagos):
+        resultado = []
+        for medio_pago in medios_pagos or []:
+            medio = medios_pagos_por_id[int(medio_pago["id_medio"])]
+            canal_id = medio_pago.get("canal_pago_id")
+            canal = canales_pagos_por_id.get(int(canal_id)) if canal_id is not None else None
+            resultado.append({
+                "Id": medio.Id,
+                "TipoMedioPago": {
+                    "Id": medio.tipo_medio_pago.Id,
+                    "NombreTipo": medio.tipo_medio_pago.NombreTipo,
+                },
+                "EntidadUsuario": (
+                    {
+                        "Id": medio.entidad_usuario.Id,
+                        "NombreEntidad": medio.entidad_usuario.NombreEntidad,
+                    }
+                    if medio.entidad_usuario
+                    else None
+                ),
+                "MarcaTarjeta": (
+                    {
+                        "Id": medio.marca_tarjeta.Id,
+                        "NombreMarca": medio.marca_tarjeta.NombreMarca,
+                    }
+                    if medio.marca_tarjeta
+                    else None
+                ),
+                "MontoMedio": medio_pago["monto_medio"],
+                "CanalPago": (
+                    {
+                        "Id": canal.Id,
+                        "NombreCanal": canal.NombreCanal,
+                    }
+                    if canal
+                    else None
+                ),
+            })
+        return resultado
 
     return [
         {
@@ -306,6 +429,7 @@ async def listar_imagenes_pendientes_usuario(db: AsyncSession, id_usuario: int):
             "motivo": imagen.Motivo,
             "procesado": imagen.Procesado,
             "fecha_procesado": formatear_fecha_larga(imagen.FechaProcesado),
+            "medios_pagos": serializar_medios_pagos(imagen.MediosPagos),
             "movimiento": {
                 "id": movimiento.Id,
                 "categoria": {

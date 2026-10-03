@@ -7,6 +7,8 @@ from typing import  List,Tuple
 from Models.ImagenesPendientes import ImagenesPendientes
 from Models.MovimientosGastos import MovimientosGastos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
+from Models.MediosPagosUsuarios import MediosPagosUsuarios
+from Models.CanalesPagos import CanalesPagos
 from Models.Usuarios import Usuarios
 
 from Integrations.r2_storage import *
@@ -15,7 +17,8 @@ from Utils.error_utils import limpiar_mensaje_error_bd
 from Utils.img_works import registrar_lista_imagenes
 from Utils.formateo_fechas import formatear_fecha_larga
 
-async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, imagenes: List[Tuple[bytes, str, str]], motivo: str):
+async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, imagenes: List[Tuple[bytes, str, str]], motivo: str,medios_pagos:list=[]):
+    list_urls = []
     try:
         ts = datetime.now()
         formateado=ts.strftime("%Y_%m_%d_T_%H_%M_%S")
@@ -28,6 +31,71 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
 
         if not imagenes:
             return RespuestaFuncion(success_registro=False, mensaje="Debe enviarse al menos una imagen")
+
+        if medios_pagos:
+            if not isinstance(medios_pagos, list):
+                return RespuestaFuncion(
+                    success_registro=False,
+                    mensaje="Los medios de pago deben enviarse como una lista",
+                )
+
+            for medio_pago in medios_pagos:
+                if not isinstance(medio_pago, dict):
+                    return RespuestaFuncion(
+                        success_registro=False,
+                        mensaje="Cada medio de pago debe ser un objeto",
+                    )
+
+                id_medio = medio_pago.get("id_medio")
+                if id_medio is None:
+                    return RespuestaFuncion(
+                        success_registro=False,
+                        mensaje="Cada medio de pago debe incluir su id_medio",
+                    )
+
+                monto_medio = medio_pago.get("monto_medio")
+                if monto_medio is None:
+                    return RespuestaFuncion(
+                        success_registro=False,
+                        mensaje="Cada medio de pago debe incluir su monto_medio",
+                    )
+                try:
+                    if monto_medio < 0:
+                        return RespuestaFuncion(
+                            success_registro=False,
+                            mensaje="El monto de un medio de pago no puede ser negativo",
+                        )
+                except TypeError:
+                    return RespuestaFuncion(
+                        success_registro=False,
+                        mensaje="El monto de un medio de pago debe ser numérico",
+                    )
+
+                medio_result = await db.execute(
+                    select(MediosPagosUsuarios.Id).where(
+                        MediosPagosUsuarios.Id == id_medio,
+                        MediosPagosUsuarios.UsuarioId == id_usuario,
+                        MediosPagosUsuarios.IsActive.is_(True),
+                    )
+                )
+                if medio_result.scalar_one_or_none() is None:
+                    return RespuestaFuncion(
+                        success_registro=False,
+                        mensaje=f"El medio de pago {id_medio} no existe, no pertenece al usuario o está inactivo",
+                    )
+
+                if "canal_pago_id" in medio_pago:
+                    canal_result = await db.execute(
+                        select(CanalesPagos.Id).where(
+                            CanalesPagos.Id == medio_pago["canal_pago_id"],
+                        )
+                    )
+                    if canal_result.scalar_one_or_none() is None:
+                        return RespuestaFuncion(
+                            success_registro=False,
+                            mensaje=f"El canal de pago {medio_pago['canal_pago_id']} no existe",
+                        )
+
         imagen_1, mime_type_1, filename_1 = imagenes[0]
         imagen_2, mime_type_2, filename_2 = None, "image/jpeg", "factura.jpg"
         imagenes_para_subir = [(imagen_1, filename_1),]
@@ -55,6 +123,7 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
                         UsuarioId=id_usuario,
                         Motivo=motivo,
                         TamañoImagen=size_bytes,
+                        MediosPagos=medios_pagos
                     )
                     db.add(imagen)
 
@@ -62,6 +131,7 @@ async def registrar_imagenes_pendientes(db: AsyncSession, id_usuario: int, image
                     print(f'Error procesando imagen {index}: {exc}')
 
             await db.commit()
+        
         return RespuestaFuncion()
     except Exception as e:
         await db.rollback()
@@ -135,5 +205,4 @@ async def listado_imagenes_pendientes(db: AsyncSession):
     except Exception as e:
             await db.rollback()
             return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
-
 

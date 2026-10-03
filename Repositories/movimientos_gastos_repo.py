@@ -9,6 +9,8 @@ from Models.MovimientosGastosImagenes import MovimientosGastosImagenes
 from Models.MovimientosGastosConceptos import MovimientosGastosConceptos
 from Models.MovimientosGastosEtiquetas import MovimientosGastosEtiquetas
 from Models.MovimientosGastosMediosPagos import MovimientosGastosMediosPagos
+from Models.MediosPagosUsuarios import MediosPagosUsuarios
+from Models.CanalesPagos import CanalesPagos
 from Models.EstadisticasModelos import EstadoEstadisticaEnum
 from Repositories.urls_imagenes_temporales_repo import procesar_urls_temporales
 from Repositories.datos_modelos_repo import actualizar_stast
@@ -195,24 +197,60 @@ async def registrar(db: AsyncSession, movimiento: dict):
                     if not isinstance(medio_pago, dict):
                         raise ValueError("Cada medio de pago debe ser un objeto")
 
-                    monto = int(medio_pago.get("monto_medio", medio_pago.get("MontoMedio", medio_pago.get("monto", 0))))
                     medio_pago_usuario_id = medio_pago.get(
                         "id_medio",
                         medio_pago.get("MedioPagoUsuarioId"),
                     )
+                    if medio_pago_usuario_id is None:
+                        raise ValueError("Cada medio de pago debe incluir su id_medio")
+
+                    monto_original = medio_pago.get(
+                        "monto_medio",
+                        medio_pago.get("MontoMedio", medio_pago.get("monto")),
+                    )
+                    if monto_original is None:
+                        raise ValueError("Cada medio de pago debe incluir su monto_medio")
+                    if float(monto_original) < 0:
+                        raise ValueError("El monto de un medio de pago no puede ser negativo")
+                    monto = int(monto_original)
+
                     canal_pago_id = medio_pago.get(
                         "canal_pago_id",
                         medio_pago.get("CanalPagoId"),
                     )
+                    canal_pago_incluido = (
+                        "canal_pago_id" in medio_pago or "CanalPagoId" in medio_pago
+                    )
 
-                    if monto < 0:
-                        raise ValueError("El monto de un medio de pago no puede ser negativo")
-                    if not medio_pago_usuario_id:
-                        raise ValueError("Cada medio de pago debe incluir su id de medio de pago del usuario")
+                    medio_pago_usuario_id = int(medio_pago_usuario_id)
+                    medio_result = await db.execute(
+                        select(MediosPagosUsuarios.Id).where(
+                            MediosPagosUsuarios.Id == medio_pago_usuario_id,
+                            MediosPagosUsuarios.UsuarioId == usuario_id,
+                            MediosPagosUsuarios.IsActive.is_(True),
+                        )
+                    )
+                    if medio_result.scalar_one_or_none() is None:
+                        raise ValueError(
+                            f"El medio de pago {medio_pago_usuario_id} no existe, "
+                            "no pertenece al usuario o está inactivo"
+                        )
+
+                    if canal_pago_incluido:
+                        if canal_pago_id is None:
+                            raise ValueError("El canal de pago indicado no existe")
+                        canal_pago_id = int(canal_pago_id)
+                        canal_result = await db.execute(
+                            select(CanalesPagos.Id).where(
+                                CanalesPagos.Id == canal_pago_id,
+                            )
+                        )
+                        if canal_result.scalar_one_or_none() is None:
+                            raise ValueError(f"El canal de pago {canal_pago_id} no existe")
 
                     medios_pago_nuevos.append({
                         "MontoMedio": monto,
-                        "MedioPagoUsuarioId": int(medio_pago_usuario_id),
+                        "MedioPagoUsuarioId": medio_pago_usuario_id,
                         "CanalPagoId": int(canal_pago_id) if canal_pago_id is not None else None,
                     })
             except (TypeError, ValueError) as error:
