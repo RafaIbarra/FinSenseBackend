@@ -22,6 +22,11 @@ TaskName = Literal[
     "ejecutar_envio_correo.py",
     "eliminar_urls_temporales.py",
 ]
+ProcessType = Literal[
+    "procesar_imagenes_pendientes",
+    "ejecutar_envio_correo",
+    "eliminar_urls_temporales",
+]
 TASK_SCRIPTS: dict[TaskName, Path] = {
     "procesar_imagenes_pendientes.py": BASE_DIR / "Tasks" / "procesar_imagenes_pendientes.py",
     "ejecutar_envio_correo.py": BASE_DIR / "Tasks" / "ejecutar_envio_correo.py",
@@ -75,17 +80,26 @@ async def procesar_pendientes(
         )
 
 @router_admin_tasks.get("/logs")
-async def listar_logs(tarea: TaskName | None = Query(None)):
+async def listar_logs(
+    tipo_proceso: ProcessType | None = Query(None),
+    tarea: TaskName | None = Query(None),
+):
     """Devuelve la lista de logs disponibles, más reciente primero."""
     if not LOG_DIR.exists():
         return {"logs": []}
 
-    if tarea is None:
+    proceso = tipo_proceso or (Path(tarea).stem if tarea is not None else None)
+    if tipo_proceso is not None and tarea is not None and tipo_proceso != Path(tarea).stem:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los parámetros tipo_proceso y tarea deben identificar el mismo proceso.",
+        )
+
+    if proceso is None:
         archivos_log = LOG_DIR.glob("*.log")
     else:
-        prefijo = Path(tarea).stem
-        prefijos = [f"{prefijo}_"]
-        if tarea == "procesar_imagenes_pendientes.py":
+        prefijos = [f"{proceso}_"]
+        if proceso == "procesar_imagenes_pendientes":
             prefijos.append("procesar_pendientes_")
         archivos_log = (
             archivo
@@ -93,19 +107,20 @@ async def listar_logs(tarea: TaskName | None = Query(None)):
             for archivo in LOG_DIR.glob(f"{prefijo_log}*.log")
         )
 
+    archivos_con_fecha = [(archivo, archivo.stat()) for archivo in archivos_log]
     archivos = sorted(
-        archivos_log,
-        key=lambda p: p.stat().st_mtime,
+        archivos_con_fecha,
+        key=lambda item: item[1].st_birthtime,
         reverse=True,
     )
 
     logs = [
         {
             "nombre": archivo.name,
-            "fecha": datetime.fromtimestamp(archivo.stat().st_mtime).isoformat(),
-            "tamano_kb": round(archivo.stat().st_size / 1024, 2),
+            "fecha": datetime.fromtimestamp(estado.st_birthtime).isoformat(),
+            "tamano_kb": round(estado.st_size / 1024, 2),
         }
-        for archivo in archivos
+        for archivo, estado in archivos
     ]
 
     return {"logs": logs}
