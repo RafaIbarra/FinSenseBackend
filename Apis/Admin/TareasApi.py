@@ -3,8 +3,9 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
-from fastapi import Depends, Form, HTTPException, Request, Query, status
+from fastapi import Depends, Form, HTTPException, Query, Request, status
 from Config.settings import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from Schemas.ApisResponseSchemas.datos_usuarios_response_schema import UsuarioResumenResponse
@@ -16,8 +17,17 @@ from .router_admin import generar_router_admin
 router_admin_tasks = generar_router_admin('tasks')
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-SCRIPT_PATH = BASE_DIR / "Tasks" / "procesar_imagenes_pendientes.py"
-LOG_DIR = BASE_DIR/ "Tasks" / "Logs" 
+TaskName = Literal[
+    "procesar_imagenes_pendientes.py",
+    "ejecutar_envio_correo.py",
+    "eliminar_urls_temporales.py",
+]
+TASK_SCRIPTS: dict[TaskName, Path] = {
+    "procesar_imagenes_pendientes.py": BASE_DIR / "Tasks" / "procesar_imagenes_pendientes.py",
+    "ejecutar_envio_correo.py": BASE_DIR / "Tasks" / "ejecutar_envio_correo.py",
+    "eliminar_urls_temporales.py": BASE_DIR / "Tasks" / "eliminar_urls_temporales.py",
+}
+LOG_DIR = BASE_DIR / "Tasks" / "Logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 ENV = os.environ.copy()
 ENV["PYTHONIOENCODING"] = "utf-8"
@@ -26,15 +36,23 @@ ENV["PYTHONUTF8"] = "1"
 @router_admin_tasks.post("/ejecutar-pendientes")
 async def procesar_pendientes(
     request: Request,
+    tarea: TaskName = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        script_path = TASK_SCRIPTS[tarea]
+        if not script_path.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"No se encontró el script de la tarea: {tarea}",
+            )
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = LOG_DIR / f"procesar_pendientes_{timestamp}.log"
+        log_file = LOG_DIR / f"{script_path.stem}_{timestamp}.log"
         
         with open(log_file, "w", encoding="utf-8") as f:
             subprocess.Popen(
-                [sys.executable, str(SCRIPT_PATH)],
+                [sys.executable, str(script_path)],
                 stdout=f,
                 stderr=subprocess.STDOUT,
                 cwd=str(BASE_DIR),
@@ -44,24 +62,39 @@ async def procesar_pendientes(
 
         return {
             "status": "lanzado",
-            "detail": "El proceso se está ejecutando en segundo plano.",
+            "detail": f"La tarea {tarea} se está ejecutando en segundo plano.",
+            "tarea": tarea,
             "log_file": log_file.name,
         }
     except HTTPException:
         raise
-    except Exception as e:
+    except OSError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error registro ejecucion: {str(e)}")
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al iniciar la tarea {tarea}: {str(e)}",
+        )
 
 @router_admin_tasks.get("/logs")
-async def listar_logs():
+async def listar_logs(tarea: TaskName | None = Query(None)):
     """Devuelve la lista de logs disponibles, más reciente primero."""
     if not LOG_DIR.exists():
         return {"logs": []}
 
+    if tarea is None:
+        archivos_log = LOG_DIR.glob("*.log")
+    else:
+        prefijo = Path(tarea).stem
+        prefijos = [f"{prefijo}_"]
+        if tarea == "procesar_imagenes_pendientes.py":
+            prefijos.append("procesar_pendientes_")
+        archivos_log = (
+            archivo
+            for prefijo_log in prefijos
+            for archivo in LOG_DIR.glob(f"{prefijo_log}*.log")
+        )
+
     archivos = sorted(
-        LOG_DIR.glob("procesar_pendientes_*.log"),
+        archivos_log,
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
