@@ -66,15 +66,9 @@ async def registro_empresa(
     if isinstance(resultado, dict) and resultado.get("error"):
         raise HTTPException(status_code=400, detail=resultado["error"])
 
-    return {
-        "status": "success",
-        "id": resultado.Id,
-        "nombre": resultado.NombreEmpresa,
-        "ruc": resultado.Ruc,
-        "url_logo": resultado.UrlLogo,
-        "fecha_registro": resultado.FechaRegistro.isoformat() if resultado.FechaRegistro else None,
-    }
-
+    
+    return {"detail": "Empresa Procesada"}
+    
 
 @router_empresas.post("/eliminar")
 async def eliminar(
