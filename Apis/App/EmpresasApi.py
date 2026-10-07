@@ -24,6 +24,15 @@ async def listar(
     
     return empresas_data.data_registro
 
+@router_empresas.get("/empresas-usuario",response_model=list[EmpresasResponse])
+async def listar(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    empresas_data = await listar_empresas(db)
+    
+    return empresas_data.data_registro
+
 
 @router_empresas.get("/detalle/{empresa_id}")
 async def detalle(
