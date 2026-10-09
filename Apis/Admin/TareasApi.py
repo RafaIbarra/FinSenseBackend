@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import Depends, Form, HTTPException, Query, Request, status
+from fastapi import Depends, Form, HTTPException, Request, status
 from Config.settings import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from Schemas.ApisResponseSchemas.datos_usuarios_response_schema import UsuarioResumenResponse
@@ -13,6 +13,7 @@ from Schemas.ApisResponseSchemas.datos_usuarios_response_schema import UsuarioRe
 from Repositories.tasks_queries import obtener_datos_tareas
 from Services.datos_tareas_pendientes_service import datos_tareas
 from .router_admin import generar_router_admin
+from Utils.formateo_fechas import formatear_fecha_larga
 
 router_admin_tasks = generar_router_admin('tasks')
 
@@ -27,6 +28,11 @@ ProcessType = Literal[
     "ejecutar_envio_correo",
     "eliminar_urls_temporales",
 ]
+PROCESS_TYPES: tuple[ProcessType, ...] = (
+    "procesar_imagenes_pendientes",
+    "ejecutar_envio_correo",
+    "eliminar_urls_temporales",
+)
 TASK_SCRIPTS: dict[TaskName, Path] = {
     "procesar_imagenes_pendientes.py": BASE_DIR / "Tasks" / "procesar_imagenes_pendientes.py",
     "ejecutar_envio_correo.py": BASE_DIR / "Tasks" / "ejecutar_envio_correo.py",
@@ -80,50 +86,42 @@ async def procesar_pendientes(
         )
 
 @router_admin_tasks.get("/logs")
-async def listar_logs(
-    tipo_proceso: ProcessType | None = Query(None),
-    tarea: TaskName | None = Query(None),
-):
-    """Devuelve la lista de logs disponibles, más reciente primero."""
+async def listar_logs():
+    """Devuelve los logs agrupados por tipo, más reciente primero."""
+    logs_por_tipo: dict[str, list[dict[str, str | float]]] = {
+        tipo: [] for tipo in PROCESS_TYPES
+    }
     if not LOG_DIR.exists():
-        return {"logs": []}
+        return logs_por_tipo
 
-    proceso = tipo_proceso or (Path(tarea).stem if tarea is not None else None)
-    if tipo_proceso is not None and tarea is not None and tipo_proceso != Path(tarea).stem:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Los parámetros tipo_proceso y tarea deben identificar el mismo proceso.",
-        )
-
-    if proceso is None:
-        archivos_log = LOG_DIR.glob("*.log")
-    else:
-        prefijos = [f"{proceso}_"]
-        if proceso == "procesar_imagenes_pendientes":
+    for tipo in PROCESS_TYPES:
+        prefijos = [f"{tipo}_"]
+        if tipo == "procesar_imagenes_pendientes":
             prefijos.append("procesar_pendientes_")
-        archivos_log = (
+
+        archivos_log = {
             archivo
             for prefijo_log in prefijos
             for archivo in LOG_DIR.glob(f"{prefijo_log}*.log")
+        }
+        archivos_con_fecha = [(archivo, archivo.stat()) for archivo in archivos_log]
+        archivos = sorted(
+            archivos_con_fecha,
+            key=lambda item: item[1].st_birthtime,
+            reverse=True,
         )
 
-    archivos_con_fecha = [(archivo, archivo.stat()) for archivo in archivos_log]
-    archivos = sorted(
-        archivos_con_fecha,
-        key=lambda item: item[1].st_birthtime,
-        reverse=True,
-    )
+        if archivos:
+            logs_por_tipo[tipo] = [
+                {
+                    "nombre": archivo.name,
+                    "fecha": formatear_fecha_larga(datetime.fromtimestamp(estado.st_birthtime)),
+                    "tamano_kb": round(estado.st_size / 1024, 2),
+                }
+                for archivo, estado in archivos
+            ]
 
-    logs = [
-        {
-            "nombre": archivo.name,
-            "fecha": datetime.fromtimestamp(estado.st_birthtime).isoformat(),
-            "tamano_kb": round(estado.st_size / 1024, 2),
-        }
-        for archivo, estado in archivos
-    ]
-
-    return {"logs": logs}
+    return logs_por_tipo
 
 
 @router_admin_tasks.get("/logs/{nombre_archivo}")
