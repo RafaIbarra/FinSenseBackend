@@ -1,7 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Models.Empresas import Empresas
+from Models.MovimientosGastos import MovimientosGastos
 from Schemas.Respuestas import RespuestaFuncion
 
 from Utils.error_utils import limpiar_mensaje_error_bd
@@ -15,6 +16,42 @@ async def listar_empresas(db: AsyncSession):
         
         empresas = result.scalars().all()
         
+        
+        return RespuestaFuncion(data_registro=empresas)
+    except Exception as error:
+            await db.rollback()
+            return RespuestaFuncion(
+                success_registro=False,
+                mensaje=str(error),
+            )
+async def listar_empresas_usuario(db: AsyncSession,id_usuario):
+    """Devuelve todas las empresas ordenadas por uso y nombre."""
+    try:
+        cantidad_movimientos = (
+            select(func.count(MovimientosGastos.Id))
+            .where(
+                MovimientosGastos.EmpresaId == Empresas.Id,
+                MovimientosGastos.UsuarioId == id_usuario,
+            )
+            .scalar_subquery()
+        )
+        result = await db.execute(
+            select(Empresas, cantidad_movimientos.label("cantidad_movimientos")).order_by(
+                cantidad_movimientos.desc(),
+                Empresas.NombreEmpresa.asc(),
+            )
+        )
+        
+        empresas = [
+            {
+                **{
+                    column.key: getattr(empresa, column.key)
+                    for column in Empresas.__table__.columns
+                },
+                "cantidad_movimientos": cantidad,
+            }
+            for empresa, cantidad in result.all()
+        ]
         
         return RespuestaFuncion(data_registro=empresas)
     except Exception as error:
@@ -152,4 +189,3 @@ async def obtener_o_crear_empresa(db: AsyncSession, nombre:str, ruc:str,rubro:st
         await db.rollback()
         return RespuestaFuncion(success_registro=False, mensaje=limpiar_mensaje_error_bd(str(e)))
     
-

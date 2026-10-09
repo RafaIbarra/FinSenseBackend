@@ -8,9 +8,12 @@ from Repositories.empresas_repo import (
     eliminar_empresa,
     listar_empresas,
     obtener_empresa,
-    registrar,
+    registrar,listar_empresas_usuario
 )
-from Schemas.ApisResponseSchemas.empresas_response_schema import EmpresasResponse
+from Schemas.ApisResponseSchemas.empresas_response_schema import (
+    EmpresasResponse,
+    EmpresasUsuarioResponse,
+)
 
 router_empresas = generar_router_app_privada('empresas')
 
@@ -24,12 +27,13 @@ async def listar(
     
     return empresas_data.data_registro
 
-@router_empresas.get("/empresas-usuario",response_model=list[EmpresasResponse])
+@router_empresas.get("/empresas-usuario",response_model=list[EmpresasUsuarioResponse])
 async def listar(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    empresas_data = await listar_empresas(db)
+    id_usuario = int(request.state.id_usuario)
+    empresas_data = await listar_empresas_usuario(db,id_usuario)
     
     return empresas_data.data_registro
 

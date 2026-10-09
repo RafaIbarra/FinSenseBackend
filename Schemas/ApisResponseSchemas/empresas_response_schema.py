@@ -17,3 +17,7 @@ class EmpresasResponse(BaseModel):
     @field_serializer("FechaRegistro")
     def serialize_fecha_registro(self, value: datetime) -> str:
         return formatear_fecha_larga(value)
+
+
+class EmpresasUsuarioResponse(EmpresasResponse):
+    cantidad_movimientos: int
