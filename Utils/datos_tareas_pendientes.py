@@ -13,6 +13,9 @@ def resumen_datos_tareas(valores) -> dict:
 
     return {
         "imagenes_pendientes": _resumen_imagenes_pendientes(valores["imagenes_pendientes"]),
+        "urls_imagenes_temporales": _resumen_urls_imagenes_temporales(
+            valores["urls_imagenes_temporales"]
+        ),
         "envio_correos": _resumen_envio_correos(valores["envio_correos"]),
     }
 
@@ -105,6 +108,118 @@ def _resumen_imagenes_pendientes(registros) -> dict:
     resumen = {
         "TotalPendientes": total_pendientes,
         "TotalPorProcesado": total_por_procesado,
+        "Usuarios": {
+            "CantidadUsuarios": len(usuarios_distintos),
+            "Usuarios": usuarios_distintos,
+        },
+    }
+
+    return {"detalle": detalle, "Resumen": resumen}
+
+
+# ==============================================================
+# URLS DE IMAGENES TEMPORALES
+# ==============================================================
+
+def _resumen_urls_imagenes_temporales(registros) -> dict:
+
+    por_proceso = defaultdict(
+        lambda: {
+            "urls": [],
+            "cantidad_registros": 0,
+            "total_tamanno_imagen": 0,
+            "fechas_registro": [],
+            "fechas_procesado": [],
+            "fechas_eliminacion": [],
+            "pendiente_eliminacion": [],
+            "usuario": None,
+        }
+    )
+
+    for registro in registros:
+        grupo = por_proceso[registro.CodigoProceso]
+        tamanno = registro.TamañoImagen or 0
+
+        grupo["cantidad_registros"] += 1
+        grupo["total_tamanno_imagen"] += tamanno
+        grupo["urls"].append({"Url": registro.UrlImagen, "TamañoImagen": tamanno})
+
+        if registro.FechaRegistro:
+            grupo["fechas_registro"].append(registro.FechaRegistro)
+
+        if registro.FechaProcesado:
+            grupo["fechas_procesado"].append(registro.FechaProcesado)
+
+        if registro.FechaEliminacion:
+            grupo["fechas_eliminacion"].append(registro.FechaEliminacion)
+
+        grupo["pendiente_eliminacion"].append(bool(registro.PendienteEliminacion))
+        grupo["usuario"] = registro.usuario.UserName if registro.usuario else None
+
+    detalle = []
+
+    for codigo_proceso, datos in por_proceso.items():
+        fecha_registro_mayor = max(datos["fechas_registro"], default=None)
+        fecha_procesado_mayor = max(datos["fechas_procesado"], default=None)
+        fecha_eliminacion_mayor = max(datos["fechas_eliminacion"], default=None)
+
+        detalle.append({
+            "CodigoProceso": codigo_proceso,
+            "CantidadRegistros": datos["cantidad_registros"],
+            "TotalTamannoImagen": datos["total_tamanno_imagen"],
+            "TotalTamannoImagen_MB": calcular_mb(datos["total_tamanno_imagen"]),
+            "Urls": datos["urls"],
+            "FechaRegistro": formatear_fecha_larga(fecha_registro_mayor) if fecha_registro_mayor else None,
+            "FechaProcesado": formatear_fecha_larga(fecha_procesado_mayor) if fecha_procesado_mayor else None,
+            "FechaEliminacion": formatear_fecha_larga(fecha_eliminacion_mayor) if fecha_eliminacion_mayor else None,
+            "UserName": datos["usuario"],
+            "PendienteEliminacion": all(datos["pendiente_eliminacion"]),
+        })
+
+    total_urls_temporales = {
+        "CantidadProcesos": len(detalle),
+        "TotalTamannoImagenes": sum(item["TotalTamannoImagen"] for item in detalle),
+        "CantidadImagenes": sum(item["CantidadRegistros"] for item in detalle),
+    }
+    total_urls_temporales["TotalTamannoImagen_MB"] = calcular_mb(
+        total_urls_temporales["TotalTamannoImagenes"]
+    )
+
+    por_pendiente_eliminacion = {
+        pendiente: {
+            "CantidadProcesos": 0,
+            "TotalTamannoImagenes": 0,
+            "CantidadImagenes": 0,
+        }
+        for pendiente in (False, True)
+    }
+
+    for item in detalle:
+        grupo = por_pendiente_eliminacion[item["PendienteEliminacion"]]
+        grupo["CantidadProcesos"] += 1
+        grupo["TotalTamannoImagenes"] += item["TotalTamannoImagen"]
+        grupo["CantidadImagenes"] += item["CantidadRegistros"]
+
+    for datos in por_pendiente_eliminacion.values():
+        datos["TotalTamannoImagen_MB"] = calcular_mb(datos["TotalTamannoImagenes"])
+
+    total_por_pendiente_eliminacion = [
+        {"PendienteEliminacion": pendiente, **datos}
+        for pendiente, datos in por_pendiente_eliminacion.items()
+    ]
+
+    usuarios_distintos = sorted({
+        item["UserName"] for item in detalle if item["UserName"]
+    })
+
+    resumen = {
+        **total_urls_temporales,
+        "CantidadPendientesEliminacion": sum(
+            item["CantidadRegistros"]
+            for item in detalle
+            if item["PendienteEliminacion"]
+        ),
+        "TotalPorPendienteEliminacion": total_por_pendiente_eliminacion,
         "Usuarios": {
             "CantidadUsuarios": len(usuarios_distintos),
             "Usuarios": usuarios_distintos,

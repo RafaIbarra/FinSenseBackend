@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from Models.ImagenesPendientes import ImagenesPendientes
+from Models.UrlsImagenesTemporales import UrlsImagenesTemporales
 from Models.MovimientosGastos import MovimientosGastos
 from Models.EnvioCorreos import EnvioCorreos
 
@@ -26,6 +27,15 @@ async def obtener_datos_tareas(db: AsyncSession):
         )
         imagenes_pendientes_data = imagenes_pendientes_qs.scalars().all()
 
+        urls_temporales_qs = await db.execute(
+            select(UrlsImagenesTemporales)
+            .options(
+                selectinload(UrlsImagenesTemporales.usuario).load_only(Usuarios.UserName)
+            )
+            .order_by(UrlsImagenesTemporales.Id.desc())
+        )
+        urls_temporales_data = urls_temporales_qs.scalars().all()
+
         envio_correos_qs = await db.execute(
                     select(EnvioCorreos)
                     .options(
@@ -36,6 +46,7 @@ async def obtener_datos_tareas(db: AsyncSession):
         envio_correos_data = envio_correos_qs.scalars().all()
         valores={
             'imagenes_pendientes':imagenes_pendientes_data,
+            'urls_imagenes_temporales': urls_temporales_data,
             'envio_correos':envio_correos_data
         }
 
