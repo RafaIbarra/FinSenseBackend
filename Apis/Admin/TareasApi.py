@@ -107,7 +107,7 @@ async def listar_logs():
         archivos_con_fecha = [(archivo, archivo.stat()) for archivo in archivos_log]
         archivos = sorted(
             archivos_con_fecha,
-            key=lambda item: item[1].st_birthtime,
+            key=lambda item: item[1].st_mtime,
             reverse=True,
         )
 
@@ -115,7 +115,7 @@ async def listar_logs():
             logs_por_tipo[tipo] = [
                 {
                     "nombre": archivo.name,
-                    "fecha": formatear_fecha_larga(datetime.fromtimestamp(estado.st_birthtime)),
+                    "fecha": formatear_fecha_larga(datetime.fromtimestamp(estado.st_mtime)),
                     "tamano_kb": round(estado.st_size / 1024, 2),
                 }
                 for archivo, estado in archivos
