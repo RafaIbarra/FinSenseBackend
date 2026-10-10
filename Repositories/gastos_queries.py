@@ -13,11 +13,58 @@ from Models.CanalesPagos import CanalesPagos
 from Models.ImagenesPendientes import ImagenesPendientes
 from Models.Empresas import Empresas
 from Models.CategoriasGastos import CategoriasGastos
+from Schemas.ApisResponseSchemas.datos_referenciales_response_schema import ReferencialesCargaGastos
 from Schemas.file_format_schemas import ExcelIvaFormat
 from Schemas.Respuestas import RespuestaFuncion
 
 from Utils.error_utils import limpiar_mensaje_error_bd
 from Utils.formateo_fechas import formatear_fecha_larga,formatear_fecha_corta
+from Repositories.empresas_repo import listar_empresas_usuario
+from Repositories.canales_pagos_repo import listar_canales_pagos
+from Repositories.medios_pagos_usuario_repo import listar_medios_pagos_usuario_activos
+async def obtener_referenciales_carga_gastos(db: AsyncSession, id_usuario: int):
+    try:
+        empresas=await listar_empresas_usuario(db,id_usuario)
+        canales=await listar_canales_pagos(db)
+        medios_pagos= await listar_medios_pagos_usuario_activos(db,id_usuario)
+
+        for respuesta in (empresas, canales, medios_pagos):
+            if not respuesta.success_registro:
+                return respuesta
+
+        data = ReferencialesCargaGastos(
+            Empresas=empresas.data_registro,
+            MediosPagos=[
+                {
+                    "Id": medio_pago.Id,
+                    "UsuarioId": medio_pago.UsuarioId,
+                    "TipoMedioPagoId": medio_pago.TipoMedioPagoId,
+                    "EntidadUsuarioId": medio_pago.EntidadUsuarioId,
+                    "MarcaTarjetaId": medio_pago.MarcaTarjetaId,
+                    "FechaRegistro": medio_pago.FechaRegistro,
+                    "IsActive": medio_pago.IsActive,
+                    "tipo_medio_pago": (
+                        medio_pago.tipo_medio_pago.NombreTipo
+                        if medio_pago.tipo_medio_pago else None
+                    ),
+                    "entidad_usuario": (
+                        medio_pago.entidad_usuario.NombreEntidad
+                        if medio_pago.entidad_usuario else None
+                    ),
+                    "marca_tarjeta": (
+                        medio_pago.marca_tarjeta.NombreMarca
+                        if medio_pago.marca_tarjeta else None
+                    ),
+                }
+                for medio_pago in medios_pagos.data_registro
+            ],
+            Canales=canales.data_registro,
+        )
+
+        return RespuestaFuncion(data_registro=data)
+    except Exception as exc:    
+        return RespuestaFuncion(success_registro=False,mensaje=limpiar_mensaje_error_bd(str(exc)))
+
 
 async def datos_iva_mes(db: AsyncSession, id_usuario: int, anno: int, mes: int):
     try:

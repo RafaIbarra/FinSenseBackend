@@ -37,6 +37,32 @@ async def listar_medios_pagos_usuario(db: AsyncSession, id_usuario: int):
 			success_registro=False,
 			mensaje=limpiar_mensaje_error_bd(str(error)),
 		)
+async def listar_medios_pagos_usuario_activos(db: AsyncSession, id_usuario: int):
+	if id_usuario <= 0:
+		return RespuestaFuncion(
+			success_registro=False,
+			mensaje="El usuario es obligatorio",
+		)
+
+	try:
+		resultado = await db.execute(
+			select(MediosPagosUsuarios)
+			.options(
+				selectinload(MediosPagosUsuarios.tipo_medio_pago),
+				selectinload(MediosPagosUsuarios.entidad_usuario),
+				selectinload(MediosPagosUsuarios.marca_tarjeta),
+			)
+			.where(MediosPagosUsuarios.UsuarioId == id_usuario,MediosPagosUsuarios.IsActive.is_(True))
+			.order_by(MediosPagosUsuarios.Id.desc())
+		)
+		return RespuestaFuncion(data_registro=resultado.scalars().all())
+	except Exception as error:
+		await db.rollback()
+		return RespuestaFuncion(
+			success_registro=False,
+			mensaje=limpiar_mensaje_error_bd(str(error)),
+		)
+
 
 
 async def crear_medio_pago_usuario(

@@ -5,7 +5,8 @@ from Config.settings import get_db
 # from Common.routers_factory import generar_router
 from .router_app import generar_router_app_privada
 from Common.rate_limit_middleware import rate_limit
-from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario,datos_iva_mes
+from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario,datos_iva_mes,obtener_referenciales_carga_gastos
+from Schemas.ApisResponseSchemas.datos_referenciales_response_schema import ReferencialesCargaGastos
 from Services.envio_archivo_services import generar_y_enviar_excel_iva
 router_movimientos_listados = generar_router_app_privada('gastos-listados')
 
@@ -62,6 +63,26 @@ async def listar_imagens_usuario(
         "datos":datos
     }
 
+@router_movimientos_listados.get(
+    "/referenciales-carga-gastos",
+    response_model=ReferencialesCargaGastos,
+)
+async def referenciales_carga_gasto(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    
+    usuario_id = int(request.state.id_usuario)
+    datos = await obtener_referenciales_carga_gastos(db,usuario_id)
+    
+    return datos.data_registro
+    
+
+
+
+
+
+
 
 @router_movimientos_listados.get("/dashboard-usuario")
 @rate_limit(max_requests=5, window_seconds=60)
@@ -105,4 +126,3 @@ async def generar_excel_iva_mes(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error solicitud archvio: {str(e)}"
         )
-
