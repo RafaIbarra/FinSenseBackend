@@ -118,7 +118,7 @@ def _canonicalizar(texto: str, mapeo: dict) -> str:
     # Si no está en el mapeo, al menos normalizamos el casing a Title Case
     return texto.strip().title()
 
-async def disponibilidad():
+async def disponibilidad_clasificador():
     models = await client.models.list()
     for m in models.data:
         print(m.id)

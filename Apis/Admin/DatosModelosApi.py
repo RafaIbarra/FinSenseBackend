@@ -1,7 +1,8 @@
 from fastapi import Depends, Form, HTTPException, Request, Query,status
 from Config.settings import get_db,settings
 from sqlalchemy.ext.asyncio import AsyncSession
-from Integrations.groq_clasificador import disponibilidad
+from Integrations.groq_clasificador import disponibilidad_clasificador
+from Integrations.google_ocr_client import disponibilidad_lector_imagen 
 from Repositories.datos_modelos_repo import datos_errores_modelos
 from Repositories.estadisticas_modelos_queries import datos_estadisticas_modelos
 from Services.datos_modelos_service import datos_modelos
@@ -20,11 +21,24 @@ async def listar(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    modelos = await disponibilidad()
+    modelos = await disponibilidad_clasificador()
     
     return {
         "status": "success",
         "empresas":modelos
+    }
+
+
+@router_models.get("/gemini")
+async def listar_modelos_gemini(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    modelos = await disponibilidad_lector_imagen()
+
+    return {
+        "status": "success",
+        "modelos": modelos
     }
 
 

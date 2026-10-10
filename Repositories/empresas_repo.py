@@ -1,11 +1,18 @@
+import asyncio
+import logging
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from Integrations.r2_storage import r2_storage
 from Models.Empresas import Empresas
 from Models.MovimientosGastos import MovimientosGastos
 from Schemas.Respuestas import RespuestaFuncion
 
 from Utils.error_utils import limpiar_mensaje_error_bd
+
+logger = logging.getLogger(__name__)
+
 
 async def listar_empresas(db: AsyncSession):
     """Devuelve todas las empresas ordenadas por la más reciente."""
@@ -74,16 +81,34 @@ async def registrar(db: AsyncSession, empresa: dict):
 
         empresa_id = empresa.get("id", 0) or 0
         nombre = str(empresa.get("nombre", "")).strip()
-        rubro = str(empresa.get("rubro", "")).strip()
+        rubro = empresa.get("rubro")
+        if rubro is not None:
+            rubro = str(rubro).strip()
         ruc = str(empresa.get("ruc", "")).strip()
         logo_img = empresa.get("logo_img")
         url_logo = None
 
         if logo_img is not None:
-            # Se recibe un archivo, se valida que exista y se prepara el flujo para
-            # el almacenamiento real o la generación de URL pública en otra capa.
-            # Aquí no se implementa el guardado ni la URL final.
-            url_logo = getattr(logo_img, "filename", None) or None
+            try:
+                file_bytes = await logo_img.read()
+                file_name = getattr(logo_img, "filename", None) or "logo_empresa.jpg"
+                if not file_bytes:
+                    logger.warning("No se subió el logo de la empresa: el archivo está vacío")
+                else:
+                    resultado_subida = await asyncio.to_thread(
+                        r2_storage.upload_logo_empresa,
+                        file_bytes=file_bytes,
+                        file_name=file_name,
+                    )
+                    if resultado_subida.get("success") and resultado_subida.get("url"):
+                        url_logo = resultado_subida["url"]
+                    else:
+                        logger.warning(
+                            "No se pudo subir el logo de la empresa: %s",
+                            resultado_subida.get("message", "URL no disponible"),
+                        )
+            except Exception:
+                logger.exception("Falló la carga del logo de la empresa")
 
         if not nombre:
             return RespuestaFuncion(success_registro=False, mensaje="El nombre de la empresa es obligatorio")
@@ -101,6 +126,8 @@ async def registrar(db: AsyncSession, empresa: dict):
             try:
                 registro.NombreEmpresa = nombre
                 registro.Ruc = ruc
+                if rubro is not None:
+                    registro.Rubro = rubro
                 if logo_img is not None:
                     registro.UrlLogo = url_logo
                 elif empresa.get("url_logo") is not None:

@@ -17,6 +17,14 @@ GEMINI_MODELS=[
         ]
 
 
+async def disponibilidad_lector_imagen():
+    modelos = await client.aio.models.list()
+    return [
+        modelo.model_dump(mode="json")
+        async for modelo in modelos
+    ]
+
+
 
 
 class CamposNoDetectadosError(Exception):

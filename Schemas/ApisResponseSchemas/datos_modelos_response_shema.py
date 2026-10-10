@@ -2,6 +2,7 @@
 from pydantic import BaseModel, ConfigDict, Field, computed_field,field_validator
 from datetime import datetime
 from typing import Optional
+from Schemas.ApisResponseSchemas.errores_modelos_schemas import ErroresModelosResponse
 
 ##REGISTRO EN DETALLE
 class DetalleSchema(BaseModel):
@@ -150,7 +151,91 @@ class EstadisticasSchema(BaseModel):
         )
 
 
+class ErrorPorTipoSchema(BaseModel):
+    TipoError: str
+    cantidad: int
+    porcentaje: float
+
+
+class ErrorPorProcesoSchema(BaseModel):
+    Proceso: str
+    cantidad: int
+    porcentaje: float
+
+
+class ErrorPorModeloSchema(BaseModel):
+    NombreModelo: str
+    Proceso: str
+    cantidad: int
+    porcentaje: float
+
+
+class EstadisticasErroresSchema(BaseModel):
+    total_general: int = 0
+    por_tipo_error: list[ErrorPorTipoSchema] = Field(default_factory=list)
+    por_proceso: list[ErrorPorProcesoSchema] = Field(default_factory=list)
+    por_modelo: list[ErrorPorModeloSchema] = Field(default_factory=list)
+    detalles_registros: list[ErroresModelosResponse] = Field(default_factory=list)
+
+    @classmethod
+    def desde_registros(cls, registros) -> "EstadisticasErroresSchema":
+        detalles = [
+            ErroresModelosResponse.model_validate(registro)
+            for registro in registros
+        ]
+        total_general = len(detalles)
+        por_tipo_error = {}
+        por_proceso = {}
+        por_modelo = {}
+
+        for detalle in detalles:
+            por_tipo_error[detalle.TipoError] = por_tipo_error.get(detalle.TipoError, 0) + 1
+            por_proceso[detalle.Proceso] = por_proceso.get(detalle.Proceso, 0) + 1
+            clave_modelo = (detalle.NombreModelo, detalle.Proceso)
+            por_modelo[clave_modelo] = por_modelo.get(clave_modelo, 0) + 1
+
+        def calcular_porcentaje(cantidad: int) -> float:
+            if not total_general:
+                return 0
+            return round(cantidad / total_general * 100, 2)
+
+        return cls(
+            total_general=total_general,
+            por_tipo_error=[
+                ErrorPorTipoSchema(
+                    TipoError=tipo_error,
+                    cantidad=cantidad,
+                    porcentaje=calcular_porcentaje(cantidad),
+                )
+                for tipo_error, cantidad in sorted(por_tipo_error.items())
+            ],
+            por_proceso=[
+                ErrorPorProcesoSchema(
+                    Proceso=proceso,
+                    cantidad=cantidad,
+                    porcentaje=calcular_porcentaje(cantidad),
+                )
+                for proceso, cantidad in sorted(por_proceso.items())
+            ],
+            por_modelo=[
+                ErrorPorModeloSchema(
+                    NombreModelo=nombre_modelo,
+                    Proceso=proceso,
+                    cantidad=cantidad,
+                    porcentaje=calcular_porcentaje(cantidad),
+                )
+                for (nombre_modelo, proceso), cantidad in sorted(por_modelo.items())
+            ],
+            detalles_registros=detalles,
+        )
+
+
+class DisponibilidadModelosSchema(BaseModel):
+    lector_imagen: list[str] = Field(default_factory=list)
+    clasificador: list[str] = Field(default_factory=list)
+
+
 class ResponseDatosModelosSchema(BaseModel):
     estadisticas: EstadisticasSchema
-
-    
+    estadisticas_errores: EstadisticasErroresSchema
+    disponibilidad: DisponibilidadModelosSchema

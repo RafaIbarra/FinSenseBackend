@@ -55,6 +55,7 @@ async def detalle(
         "nombre": empresa.NombreEmpresa,
         "ruc": empresa.Ruc,
         "url_logo": empresa.UrlLogo,
+        "rubro":empresa.Rubro,
         "fecha_registro": empresa.FechaRegistro.isoformat() if empresa.FechaRegistro else None,
     }
 
@@ -62,17 +63,19 @@ async def detalle(
 @router_empresas.post("/registro")
 async def registro_empresa(
     request: Request,
+    id: int = Form(...),
     nombre: str = Form(...),
     ruc: str = Form(...),
-    logo_img: UploadFile | None = File(None),
-    id: int = Form(0),
+    rubro: str | None = Form(None),
+    logo: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
     empresa_data = {
         "id": id,
         "nombre": nombre,
         "ruc": ruc,
-        "logo_img": logo_img,
+        "rubro": rubro,
+        "logo_img": logo,
     }
 
     resultado = await registrar(db, empresa_data)
