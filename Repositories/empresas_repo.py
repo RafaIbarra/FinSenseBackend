@@ -17,13 +17,27 @@ logger = logging.getLogger(__name__)
 async def listar_empresas(db: AsyncSession):
     """Devuelve todas las empresas ordenadas por la más reciente."""
     try:
-        result = await db.execute(
-            select(Empresas).order_by(Empresas.Id.desc())
+        cantidad_registros = (
+            select(func.count(MovimientosGastos.Id))
+            .where(MovimientosGastos.EmpresaId == Empresas.Id)
+            .scalar_subquery()
         )
-        
-        empresas = result.scalars().all()
-        
-        
+        result = await db.execute(
+            select(Empresas, cantidad_registros.label("CantidadRegistros"))
+            .order_by(Empresas.Id.desc())
+        )
+
+        empresas = [
+            {
+                **{
+                    column.key: getattr(empresa, column.key)
+                    for column in Empresas.__table__.columns
+                },
+                "CantidadRegistros": cantidad,
+            }
+            for empresa, cantidad in result.all()
+        ]
+
         return RespuestaFuncion(data_registro=empresas)
     except Exception as error:
             await db.rollback()

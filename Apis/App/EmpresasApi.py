@@ -12,13 +12,14 @@ from Repositories.empresas_repo import (
 )
 from Schemas.ApisResponseSchemas.empresas_response_schema import (
     EmpresasResponse,
+    EmpresasListadoResponse,
     EmpresasUsuarioResponse,
 )
 
 router_empresas = generar_router_app_privada('empresas')
 
 
-@router_empresas.get("/listar",response_model=list[EmpresasResponse])
+@router_empresas.get("/listar",response_model=list[EmpresasListadoResponse])
 async def listar(
     request: Request,
     db: AsyncSession = Depends(get_db),

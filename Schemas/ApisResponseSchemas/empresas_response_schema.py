@@ -19,5 +19,9 @@ class EmpresasResponse(BaseModel):
         return formatear_fecha_larga(value)
 
 
+class EmpresasListadoResponse(EmpresasResponse):
+    CantidadRegistros: int = 0
+
+
 class EmpresasUsuarioResponse(EmpresasResponse):
     cantidad_movimientos: int
