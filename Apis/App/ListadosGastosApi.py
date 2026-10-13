@@ -63,10 +63,7 @@ async def listar_imagens_usuario(
         "datos":datos
     }
 
-@router_movimientos_listados.get(
-    "/referenciales-carga-gastos",
-    response_model=ReferencialesCargaGastos,
-)
+@router_movimientos_listados.get("/referenciales-carga-gastos",response_model=ReferencialesCargaGastos)
 async def referenciales_carga_gasto(
     request: Request,
     db: AsyncSession = Depends(get_db),

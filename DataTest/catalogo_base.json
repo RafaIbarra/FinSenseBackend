@@ -1,0 +1,145 @@
+{
+    "Empresas": [
+        {
+            "Id": 50,
+            "NombreEmpresa": "Indefinido 2",
+            "Rubro": null,
+            "Ruc": "110-0",
+            "UrlLogo": null,
+            "FechaRegistro": "10/10/2026 03:10:49",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 49,
+            "NombreEmpresa": "IMPERIO digital INSUMOS PARA SUBLIMAR",
+            "Rubro": "SELLOS DE GOMA, FOTOCOPIAS - IMPRESIONES A COLOR, B/N, IMPRESIONES SUBLIMÁTICAS Y VENTA DE INSUMOS SUBLIMÁTICOS",
+            "Ruc": "710919-9",
+            "UrlLogo": null,
+            "FechaRegistro": "24/09/2026 02:38:42",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 48,
+            "NombreEmpresa": "Varios",
+            "Rubro": "",
+            "Ruc": "0-0",
+            "UrlLogo": null,
+            "FechaRegistro": "29/08/2026 03:02:09",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 47,
+            "NombreEmpresa": "MEISTER SRL",
+            "Rubro": "",
+            "Ruc": "80024390-0",
+            "UrlLogo": null,
+            "FechaRegistro": "29/08/2026 01:14:16",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 46,
+            "NombreEmpresa": "CADENA REAL S.A",
+            "Rubro": "",
+            "Ruc": "80016951-4",
+            "UrlLogo": null,
+            "FechaRegistro": "29/08/2026 00:31:06",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 45,
+            "NombreEmpresa": "BIGGIE S.A.",
+            "Rubro": "Comercio",
+            "Ruc": "80077406-0",
+            "UrlLogo": "https://finsense-dev-empresas.rafaelibarra.xyz/FIN_SENSE_DEV_20261010_000330_20c7796f.png",
+            "FechaRegistro": "28/08/2026 02:06:44",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 44,
+            "NombreEmpresa": "SUPERMERCADO EL AHORRAZO",
+            "Rubro": "Supermercado - Panaderia - Rotiseria",
+            "Ruc": "80096143-9",
+            "UrlLogo": null,
+            "FechaRegistro": "27/08/2026 01:05:07",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 43,
+            "NombreEmpresa": "ANDE - ADMINISTRACION NACIONAL DE ELECTRICIDAD",
+            "Rubro": "",
+            "Ruc": "80009735-1",
+            "UrlLogo": null,
+            "FechaRegistro": "27/08/2026 01:02:19",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 42,
+            "NombreEmpresa": "Tricolor S.A. PINTURERIA",
+            "Rubro": "Comercio al por menor de pinturas y revestimientos similares",
+            "Ruc": "80029149-2",
+            "UrlLogo": null,
+            "FechaRegistro": "26/08/2026 20:15:05",
+            "cantidad_movimientos": 0
+        },
+        {
+            "Id": 41,
+            "NombreEmpresa": "Servicios Rapidos del Paraguay S.A.",
+            "Rubro": "Operacion Restaurante",
+            "Ruc": "80014066-4",
+            "UrlLogo": null,
+            "FechaRegistro": "26/08/2026 20:11:34",
+            "cantidad_movimientos": 0
+        }
+    ],
+    "TiposMedios": [
+        {
+            "Id": 12,
+            "NombreTipo": "Caja Ahorro",
+            "EsDebito": true,
+            "FechaRegistro": "02/10/2026 02:05:54",
+            "SolicitarMarca": false,
+            "SolicitarEntidad": true
+        },
+        {
+            "Id": 11,
+            "NombreTipo": "Efectivo",
+            "EsDebito": true,
+            "FechaRegistro": "02/10/2026 02:05:54",
+            "SolicitarMarca": false,
+            "SolicitarEntidad": false
+        },
+        {
+            "Id": 10,
+            "NombreTipo": "Tarjeta Debito",
+            "EsDebito": true,
+            "FechaRegistro": "02/10/2026 02:05:54",
+            "SolicitarMarca": true,
+            "SolicitarEntidad": true
+        },
+        {
+            "Id": 9,
+            "NombreTipo": "Tarjeta Credito",
+            "EsDebito": false,
+            "FechaRegistro": "02/10/2026 02:05:54",
+            "SolicitarMarca": true,
+            "SolicitarEntidad": true
+        }
+    ],
+    "Canales": [
+        {
+            "Id": 3,
+            "NombreCanal": "Pos",
+            "FechaRegistro": "02/10/2026 01:14:35"
+        },
+        {
+            "Id": 2,
+            "NombreCanal": "Transferencias",
+            "FechaRegistro": "02/10/2026 01:14:35"
+        },
+        {
+            "Id": 1,
+            "NombreCanal": "QR",
+            "FechaRegistro": "02/10/2026 01:14:35"
+        }
+    ]
+}

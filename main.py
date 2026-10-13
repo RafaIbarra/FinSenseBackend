@@ -29,7 +29,7 @@ from Apis.Admin.DatosModelosApi import router_models
 from Apis.Admin.AdminApi import router_admin
 from Apis.Admin.DatosUsuariosApi import router_admin_users
 from Apis.Admin.TareasApi import router_admin_tasks
-from Apis.Admin.DatosReferencialesApi import router_referenciales
+from Apis.Admin.CatalogosBaseApi import router_catalogos_base
 
 from Common.rate_limit_middleware import default_rate_limiter,rate_limit
 from Common.security_headers import SecurityHeadersMiddleware
@@ -116,7 +116,7 @@ app.include_router(router_tests)
 app.include_router(router_user_config)
 app.include_router(router_admin_users)
 app.include_router(router_admin_tasks)
-app.include_router(router_referenciales)
+app.include_router(router_catalogos_base)
 
 
 
