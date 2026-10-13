@@ -12,7 +12,7 @@ class EmpresasResponse(BaseModel):
     Ruc: str
     UrlLogo: Optional[str] = None
     FechaRegistro: datetime
-    cantidad_movimientos: int=0
+    CantidadRegistros: int=0
 
     @field_serializer("FechaRegistro")
     def serialize_fecha_registro(self, value: datetime) -> str:

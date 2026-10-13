@@ -19,7 +19,7 @@ async def obtener_catalogos_base(db: AsyncSession):
             "TiposMedios":qs_tipos_medios.data_registro,
             "Empresas":qs_empresas.data_registro
         }
-
+        
         return RespuestaFuncion(data_registro=data)
     except Exception as exc:
         return RespuestaFuncion(
