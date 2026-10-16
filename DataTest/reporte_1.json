@@ -1,59 +1,148 @@
-{
-    "id": 0,
-    "factura": {
-        "empresa": "BIGGIE S.A.",
-        "rubro": "",
-        "ruc_empresa": "80077406-0",
-        "fecha": "2026-09-11",
-        "numero_factura": "252-002-0099028",
-        "total": 16000.0,
-        "iva_diez": 1455.0,
-        "iva_cinco": 0.0,
-        "fiabilidad": "Excelente",
-        "detalle": [
-            "Cigarrillo Kent Blue Bc Hw26"
+[
+    {
+        "id": 6,
+        "url_imagen": [
+            "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20261015_214201_6f483fcb.png"
         ],
-        "Model": "gemini-2.5-flash",
-        "stats": {
-            "input_tokens": 3015,
-            "output_tokens": 169,
-            "thoughts_tokens": 1853,
-            "total_tokens": 5037
+        "fecha_registro": "16/10/2026 00:43:47",
+        "usuario_id": 1,
+        "respuesta": {
+            "detail": {
+                "solicita_envio_pendiente": false,
+                "mensaje_error": "campos requeridos no detectados en la imagen"
+            }
         },
-        "success_registro": true,
-        "mensaje_error": "",
-        "data_correct": true
+        "observacion": "Si es una factura",
+        "estado_resolucion": "Resuelto",
+        "resolucion": "Resultop",
+        "fecha_resolucion": "16/10/2026 01:19:32",
+        "id_usuario": 1,
+        "nombre_usuario": "Lucas",
+        "apellido_usuario": "Ibarra",
+        "user_name": "lucas"
     },
-    "clasificacion": {
-        "categoria": "Supermercados",
-        "etiquetas": [
-            {
-                "etiqueta": "Tabaco",
-                "conceptos": [
-                    "Cigarrillo Kent Blue Bc Hw26"
-                ]
-            }
+    {
+        "id": 5,
+        "url_imagen": [
+            "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20261015_214007_26715016.jpeg",
+            "https://finsense-dev-gastos.rafaelibarra.xyz/FIN_SENSE_DEV_20261015_214008_142f98c5.jpeg"
         ],
-        "modelo_clasificador": "qwen/qwen3.8-27b",
-        "stats": {
-            "input_tokens": 932,
-            "output_tokens": 67,
-            "thoughts_tokens": 0,
-            "total_tokens": 999
-        }
-    },
-    "imagenes": {
-        "urls_img": [
-            {
-                "url": "https://finsense-dev-temporales.rafaelibarra.xyz/FIN_SENSE_DEV_20260916_151417_f643d00a.jpeg",
-                "size_bytes": 103949
-            }
-        ],
-        "success": true,
-        "mensaje_error_subida": "",
-        "tipo_url": "Temporal"
-    },
-    "tipo_registro": "Asistido",
-    "id_stas": 15
-    ,"observacion": "el formato no es correcto"
-}
+        "fecha_registro": "16/10/2026 00:40:52",
+        "usuario_id": 1,
+        "respuesta": {
+            "id": 0,
+            "factura": {
+                "empresa": "SUPERMERCADO EL AHORRAZO",
+                "rubro": "Supermercado - Panadería - Rotisería",
+                "ruc_empresa": "80096143-9",
+                "fecha": "2026-08-09",
+                "numero_factura": "006-007-0107597",
+                "total": 424400.0,
+                "iva_diez": 22574.0,
+                "iva_cinco": 8387.0,
+                "fiabilidad": "Excelente",
+                "detalle": [
+                    "SET DE UTENCI",
+                    "JYL TOALLA B",
+                    "PORTA PAPEL T",
+                    "PORTA JABON L",
+                    "TRAPO D/COCINA",
+                    "BANDEJA OVALA",
+                    "CEBOLLITA MAZ",
+                    "TOMATE NACIONAL",
+                    "ZAPALLO BRASILE",
+                    "CEBOLLA NAC X K",
+                    "PAPA CHICA X KI",
+                    "TREBOL LECHE TE",
+                    "BELEN CAFE MA",
+                    "CARNAZA BLANCA",
+                    "CARNAZA NEGRA F",
+                    "TREBOL QUESO PY",
+                    "GUARANI JAMONAD",
+                    "LECHUGA CHES",
+                    "PECHUGON PECHUG",
+                    "AHURRAZO BOLSA"
+                ],
+                "Model": "gemini-2.5-flash",
+                "stats": {
+                    "input_tokens": 3273,
+                    "output_tokens": 368,
+                    "thoughts_tokens": 3706,
+                    "total_tokens": 7347
+                },
+                "success_registro": true,
+                "mensaje_error": "",
+                "data_correct": true
+            },
+            "clasificacion": {
+                "categoria": "Supermercados",
+                "etiquetas": [
+                    {
+                        "etiqueta": "Hogar Y Limpieza",
+                        "conceptos": [
+                            "SET DE UTENCI",
+                            "JYL TOALLA B",
+                            "PORTA PAPEL T",
+                            "PORTA JABON L",
+                            "TRAPO D/COCINA",
+                            "BANDEJA OVALA"
+                        ]
+                    },
+                    {
+                        "etiqueta": "Frutas Y Verduras",
+                        "conceptos": [
+                            "CEBOLLITA MAZ",
+                            "TOMATE NACIONAL",
+                            "ZAPALLO BRASILE",
+                            "CEBOLLA NAC X K",
+                            "PAPA CHICA X KI",
+                            "LECHUGA CHES"
+                        ]
+                    },
+                    {
+                        "etiqueta": "Lácteos Y Desayunos",
+                        "conceptos": [
+                            "TREBOL LECHE TE",
+                            "BELEN CAFE MA",
+                            "TREBOL QUESO PY"
+                        ]
+                    },
+                    {
+                        "etiqueta": "Carnes Y Fiambres",
+                        "conceptos": [
+                            "CARNAZA BLANCA",
+                            "CARNAZA NEGRA F",
+                            "GUARANI JAMONAD",
+                            "PECHUGON PECHUG"
+                        ]
+                    },
+                    {
+                        "etiqueta": "Almacén Y Despensa",
+                        "conceptos": [
+                            "AHURRAZO BOLSA"
+                        ]
+                    }
+                ],
+                "modelo_clasificador": "qwen/qwen3.8-27b",
+                "stats": {
+                    "input_tokens": 1090,
+                    "output_tokens": 378,
+                    "thoughts_tokens": 0,
+                    "total_tokens": 1468
+                }
+            },
+            "tipo_registro": "Asistido",
+            "id_stas": 43,
+            "medio_pago": []
+        },
+        "observacion": "acaso no ent3endes",
+        "estado_resolucion": "Pendiente",
+        "resolucion": null,
+        "fecha_resolucion": null,
+        "id_usuario": 1,
+        "nombre_usuario": "Lucas",
+        "apellido_usuario": "Ibarra",
+        "user_name": "lucas"
+    }
+    
+]

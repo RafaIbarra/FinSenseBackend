@@ -7,7 +7,7 @@ class ImagenesResportadasResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    url_imagen:  Optional[str] = None
+    url_imagen: list[str]
     fecha_registro: datetime
     usuario_id: int
     respuesta: Optional[Any] = None

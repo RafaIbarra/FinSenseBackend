@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Request,status
+from fastapi import Depends, HTTPException, Request,status,Query
 from datetime import datetime,date,timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from Config.settings import get_db
@@ -6,7 +6,10 @@ from Config.settings import get_db
 from .router_app import generar_router_app_privada
 from Common.rate_limit_middleware import rate_limit
 from Repositories.gastos_queries import movimientos_usuario_gastos,listar_imagenes_pendientes_usuario,dashboard_usuario,datos_iva_mes,obtener_referenciales_carga_gastos
+from Repositories.imagenes_reportadas_repo import listado_reportados
 from Schemas.ApisResponseSchemas.datos_referenciales_response_schema import ReferencialesCargaGastos
+from Schemas.ApisResponseSchemas.feedback_response_schema import ImagenesResportadasResponse
+
 from Services.envio_archivo_services import generar_y_enviar_excel_iva
 router_movimientos_listados = generar_router_app_privada('gastos-listados')
 
@@ -74,7 +77,28 @@ async def referenciales_carga_gasto(
     
     return datos.data_registro
     
-
+@router_movimientos_listados.get("/reportes-usuario", response_model=list[ImagenesResportadasResponse])
+async def lista_imagenes_reportadas_usuario(
+    request: Request,
+    id_reporte: int | None = Query(default=None, ge=0),
+    db: AsyncSession = Depends(get_db)):
+    try:
+        id_usuario = int(request.state.id_usuario)
+        datos = await listado_reportados(db,id_usuario,id_reporte or 0)
+        if datos.success_registro:
+            return datos.data_registro
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=datos.mensaje,
+            )
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al listar los canales de pago: {str(error)}",)
+    
 
 
 

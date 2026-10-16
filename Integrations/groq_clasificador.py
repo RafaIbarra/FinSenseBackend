@@ -120,8 +120,7 @@ def _canonicalizar(texto: str, mapeo: dict) -> str:
 
 async def disponibilidad_clasificador():
     models = await client.models.list()
-    for m in models.data:
-        print(m.id)
+    
     return models
 
 
